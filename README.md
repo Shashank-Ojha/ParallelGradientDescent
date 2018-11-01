@@ -1,13 +1,10 @@
-# Parallelizing Gradient Descent on Different Architectures 
-## Shashank Ojha and Kylee Santos
-
 [Project Proposal](https://shashank-ojha.github.io/ParallelGradientDescent/proposal.pdf)
 
-### Summary
+## Summary
 
 We are going to create optimized implementations of gradient descent on both GPU and multi-core CPU platforms, and perform a detailed analysis of both systems’ performance characteristics. The GPU implementation will be done using CUDA, where as the multi-core CPU implementation will be done with OpenMP. 
 
-### Background
+## Background
 
 Gradient Descent is a technique used to find a minimum using numerical analysis in times where directly computing the minimum analytically is too hard or even infeasible. The idea behind the algorithm is simple. At any given point in time, you determine the effect of modifying your input variable on the cost you are trying to minimize. In the one dimensional case, if increasing the value of your input decreases your cost, then you increase the value of your input by a small step to get you closer to the minimum cost. Generalizing to higher dimensions, the gradient tells you the direction of the greatest increase on your cost function, so we move the input in the opposite direction to hopefully decrease the value of the cost function. 
 
@@ -19,13 +16,13 @@ The last important detail to discuss is the concept of local and global minima. 
 
 As you might observe, the initial position start state may affect our answer when performing gradient descent. This is because the gradient is different at each point and thus starting at a different point may take us in a different direction. With respect to stochastic and batch gradient descent, stochastic gradient has the property that it might jump out of local minima because it has a random aspect to it that makes the gradient more noisy. This has a variety of applications in machine learning where we are working with large data sets and a gradient descent becomes very computationally intensive.
 
-### Challenges
+## Challenges
 
 The challenges are more related to finding the best suited programming model given an architecture. This is because each architecture calls for a different implementation. With the high number of threads available to GPUs, we can potentially calculate the gradient with a larger number of points and make a more accurate step towards the optimal, but each update may be slower than on multi-core CPUs. In contrast, multi-core CPUs will have the advantage of making updates faster because there is no offload overhead involved. This tradeoff between correctness and speed presents an interesting challenge of finding the programming model that optimizes performance in each case. 
 
 Another challenge of the project comes from the fact that we are working with large datasets, so how we organize our memory to hold all the data will be another area of focus for this project. For example, previous papers have stated that it may be beneficial to partition the data into disjoint subsets so each core or block on the GPU doesn’t have to share data. Of course, this may lead to less accurate updates since each core or block only has a part of the whole picture. However, the speedup gained from less sharing might still allow us to arrive closer to the optimal sooner.
 
-### Resources
+## Resources
 
 We will start off by implementing our gradient descent using CUDA on NVIDIA GeForce GTX 1080 GPUs and using OpenMP on Xeon Phi Machines. We will start the code from scratch since the actual implementation of the gradient descent isn't too complex and we may make several modifications to it based on the architecture. This assignment is an exploration of different system designs and architectures, therefore it does not make sense to build off someone else's code. We want full control of everything. 
 
@@ -35,7 +32,7 @@ There are several online papers about this topic. For now, we will use the follo
 
 The one thing we still have to figure out is how to obtain a good dataset. We want a data set that is large and minimizes a non-convex function, so we can observe cases where our gradient descent might fall into a local minimum as opposed to a global one. If time permits, we might run our program on other machines and measure performance on those as well.
 
-### Goals & Deliverables
+## Goals & Deliverables
 
 Our overall goal that we plan to achieve is to recreate the results of the papers mentioned above. The desired output of our program is a α = {1.5, 1.1, 1.01} approximation of the optimal solution and we want to examine the runtime it takes to get to those levels of correctness.  We aim for a runtime that is around 8x faster than the serial version. We chose this benchmark after reading the papers linked above. According to their results, they achieved approximately a 12x speedup for their data set, so we expect to see similar results. 
 
@@ -52,11 +49,11 @@ For the poster presentation, we expect to have lots of graphs of our results. Sp
 
 If time permits, we also have some additional ideas that we could explore further. We can implement a mixture of batch and stochastic gradient descent to achieve a performance as good or better than the reference papers for some approximation of the optimal. In addition, we can look into OpenCL in order to run SGD on heterogeneous machines that have access to both GPUs and CPUs and measure performance there.
 
-### Platform Choice
+## Platform Choice
 
 The goal of this project is to determine the performance tradeoffs of paralleling gradient descent on GPUs and CPUs. The reason we choose to work with  NVIDIA GeForce GTX 1080 GPUs and Xeon Phi Machines is mainly because we are most familiar with the machines.
 
-### Schedule
+## Schedule
 
 Week of 11/5 - 11/9:
 - Find a couple data sets to test on
