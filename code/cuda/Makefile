@@ -27,7 +27,6 @@ NVCCFLAGS=-O3 -m64 --gpu-architecture compute_35
 
 OBJS=$(OBJDIR)/main.o  $(OBJDIR)/gd.o
 
-
 .PHONY: dirs clean
 
 default: $(EXECUTABLE)

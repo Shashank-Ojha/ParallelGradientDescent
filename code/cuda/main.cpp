@@ -3,17 +3,12 @@
 #include <getopt.h>
 #include <string>
 
-typedef struct {
-  float b0;
-  float b1;
-} estimate_t;
+#include "regression.h"
 
-const float STEP_SIZE = 0.000005;
-const int NUM_ITER =  100000;
-const float INIT_B0 = 0.0;
-const float INIT_B1 = 0.0;
-
-void sgdCuda(int N, float alpha, float* x, float* y, float* result);
+estimate_t* bgdCudaCopy(int N, float* x, float* y);
+estimate_t* bgdCuda(int N, float* x, float* y);
+estimate_t* sgdCuda(int N, float* x, float* y);
+void printCudaInfo();
 
 void usage(const char* progname) {
     printf("Usage: %s [options]\n", progname);
@@ -52,7 +47,9 @@ estimate_t* bgd(int N, float* x, float* y){
       db0 += (1.0 / static_cast<float>(N)) * getdB0(x[j], y[j], estimate);
       db1 += (1.0 / static_cast<float>(N)) * getdB1(x[j], y[j], estimate);
     }
-
+    if(i < 5){
+      printf("original: %f \t %f \n", db0, db1);
+    }
     estimate -> b0 = (estimate -> b0) - (STEP_SIZE * db0);
     estimate -> b1 = (estimate -> b1) - (STEP_SIZE * db1);
   }
@@ -127,12 +124,18 @@ int main(int argc, char** argv)
 
     srand(418);
 
-    estimate_t* estimate_sgd = sgd(N, x, y);
-    printf("Stoicastic: y = %.2f (x) + %0.2f\n", estimate_sgd -> b1, estimate_sgd -> b0);
-
     estimate_t* estimate_bgd = bgd(N, x, y);
     printf("Batch: y = %.2f (x) + %0.2f\n", estimate_bgd -> b1, estimate_bgd -> b0);
 
+    estimate_t* estimate_sgd = sgd(N, x, y);
+    printf("Stochastic: y = %.2f (x) + %0.2f\n", estimate_sgd -> b1, estimate_sgd -> b0);
+
+    estimate_t* estimate_bgdCudaCopy = bgdCudaCopy(N, x, y);
+    printf("Cuda Batch Copy: y = %.2f (x) + %0.2f\n", estimate_bgdCudaCopy -> b1, estimate_bgdCudaCopy -> b0);
+
+
+    estimate_t* estimate_bgdCuda = bgdCuda(N, x, y);
+    printf("Cuda Batch: y = %.2f (x) + %0.2f\n", estimate_bgdCuda -> b1, estimate_bgdCuda -> b0);
 
     return 0;
 }
