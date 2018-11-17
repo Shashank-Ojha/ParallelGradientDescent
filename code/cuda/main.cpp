@@ -13,7 +13,7 @@ void printCudaInfo();
 void usage(const char* progname) {
     printf("Usage: %s [options]\n", progname);
     printf("Program Options:\n");
-    printf("  -f  Number of elements in arrays\n");
+    printf("  -f  Filename\n");
     printf("  -?  This message\n");
 }
 
@@ -34,10 +34,9 @@ float getdB1(float x, float y, estimate_t* estimate){
 
 estimate_t* bgd(int N, float* x, float* y){
   estimate_t* estimate = (estimate_t*)malloc(sizeof(estimate_t));
-  estimate -> b0 = 0.0;
-  estimate -> b1 = 0.0;
+  estimate -> b0 = INIT_B0;
+  estimate -> b1 = INIT_B1;
 
-  //pick a point randomly
   for(int i = 0; i < NUM_ITER; i++){
 
     float db0 = 0;
@@ -130,12 +129,12 @@ int main(int argc, char** argv)
     estimate_t* estimate_sgd = sgd(N, x, y);
     printf("Stochastic: y = %.2f (x) + %0.2f\n", estimate_sgd -> b1, estimate_sgd -> b0);
 
-    estimate_t* estimate_bgdCudaCopy = bgdCudaCopy(N, x, y);
-    printf("Cuda Batch Copy: y = %.2f (x) + %0.2f\n", estimate_bgdCudaCopy -> b1, estimate_bgdCudaCopy -> b0);
-
-
-    estimate_t* estimate_bgdCuda = bgdCuda(N, x, y);
-    printf("Cuda Batch: y = %.2f (x) + %0.2f\n", estimate_bgdCuda -> b1, estimate_bgdCuda -> b0);
+    // estimate_t* estimate_bgdCudaCopy = bgdCudaCopy(N, x, y);
+    // printf("Cuda Batch Copy: y = %.2f (x) + %0.2f\n", estimate_bgdCudaCopy -> b1, estimate_bgdCudaCopy -> b0);
+    //
+    //
+    // estimate_t* estimate_bgdCuda = bgdCuda(N, x, y);
+    // printf("Cuda Batch: y = %.2f (x) + %0.2f\n", estimate_bgdCuda -> b1, estimate_bgdCuda -> b0);
 
     return 0;
 }
