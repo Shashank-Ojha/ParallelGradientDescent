@@ -78,3 +78,85 @@ Week of 12/3 - 12/7:
 Week of 12/10 - 12/14:
 - Look into OpenCL if time permits or continue working on any of the previous tasks if behind.
 
+
+# Checkpoint Report
+
+## What We’ve Done:
+
+We decided to start our project by applying gradient descent on a linear regression application. We started out by following the tutorial listed below to get a sequential version of batch gradient descent working.
+
+https://spin.atomicobject.com/2014/06/24/gradient-descent-linear-regression/
+ 
+The tutorial includes a reference implementation in Python and some of their results with a simple data set with 100 points. We implemented this code 3 times. Once in normal C++ for reference, once with CUDA, and once with the OpenMP framework. In addition to just batch gradient descent, we also implemented stochastic gradient descent in all three frameworks as well.  
+Here a brief description of what the code does. Given a set of N data points of the form (x, f(x)), we try to find a linear function of the form f'(x) =  b1 x + b0 to best fit the data. In order to measure fit, we use the error function e =(1/N) Sum [f'(x) - f(x)]^2 over data points. Based on this, we update both b1 and b0according to their partial derivatives on e.  Our program updates the parameters for a given number of iterations.
+
+We were able to improve the speedup of batch gradient descent using OpenMP by offloading the work onto the Xeon Phi and utilizing the scheduling of pragma loops. In terms of stochastic gradient descent, since it randomly selects points from the data set, we were able to improve correctness by running this process in parallel and averaging the results. In another design implementation, we were able to build upon this model and also have each process randomly select multiple points to update in each iteration.
+
+
+## Preliminary Results: 
+
+In order to test correctness, we first loaded the data set into R in order to visualize the points and find the optimal linear model based on the error function. This served as a baseline. Our linear fit in R yielded the equation y=1.32x + 7.99, with a mean squared error of 110.2574. For our implementations of the program, we were able to get consistent results from both forms of gradient descent when run for enough iterations. Additionally, we tuned our hyperparameters to get our models to converge to a MSE of 112.61 for batch gradient descent with 1000 iterations and a learning rate of 0.0001. Using the same hyperparameters, we achieved an MSE of 113.87 with stochastic gradient descent. Because our data was fairly off center and our parameters, 0and  1, were initialized to 0, a small learning rate and large number of iterations were required for our model to converge on the dataset.
+
+For our intial design for parallelism in stochastic gradient descent, each processor updated its model using random points in all the iterations and averaged the results to improve correctness. Consequently, our results supported this improvement as our MSE consistently decreased as the number of processors increased, while the computation time increased since more synchronization would be needed to average the results.
+
+## Goals and Deliverables:
+
+We were able to implement and refine two of our designs outlined in the initial project proposal as restated below:
+Load all the data on each core, compute the updated value in parallel based on a random data point on each core, and average their results to achieve better correctness.
+The same as method 1, but compute k updates together on each core and then average their results.
+
+We were able to try out these 2 designs in OpenMP first instead of using GPU programming like our initial project schedule specified. This is because with the basic implementations of batch and stochastic gradient descent there isn’t too much naturally parallel parts of the code, so having a large number of threads isn’t too interesting. We look forward to using the architecture when we come up with our own implementations of a mixed batch/stochastic design to try to optimize correctness as well as performance. Furthermore, with respect to obtaining measurements based on the different approximation algorithms, this deliverable will be pushed back for another couple weeks. This is because we want to come up different design implementations before we take measurements.
+
+At the poster session, we will stick to the original plan and present the following graphs. 
+
+1. Speedup vs Number of Threads for each Architecture
+2. Speedup vs Approximation Factor for each Architecture (Speedup of Max threads available to the machine with respect to 1 thread)
+3. Speedup vs Dataset size for each Architecture (Speedup of Max threads available to the machine with respect to 1 thread)
+
+So far we are on track with respect to our schedule. The only thing that has changed is that we switched the CUDA and OpenMP implementations in our schedule because getting setup with the Makefiles and data took longer than expected. The “nice to haves” are still a maybe. We want to focus on actually using the each architecture to its fullest extent rather than adding another implementation to our project. As of right now, we have basic implementations, but more time can definitely be spent optimizing each of those. An updated schedule can be found in the “Updated Schedule” section.
+
+## Updated Schedule:
+Week of 11/5 - 11/9:
+	Find a couple data sets to test on
+	Get a sequential version of the code working in C/C++
+
+Week of 11/12 - 11/16:
+Implement Parallel SGD using OpenMP
+Implement all four algorithmic designs for OpenMP
+Implement one of the four algorithmic designs in CUDA
+
+Week of 11/19 - 11/23 (Week of Thanksgiving Break):
+First Half
+	Improve OpenMP implementations speedup by adding optimizations to the code such as using less critical sections and trading off correctness. (Both)
+Second Half
+	Convert the for loops to while loops so we can get alpha approximations 
+(Shashank)
+	Get measurements on how long it takes to get within α = {1.5, 1.1, 1.01} of the optimal for all implementations we have coded (Sequential and OpenMP) (Kylee).
+
+Week of 11/26 - 11/30:
+First Half
+	Implement algorithmic designs 1 and 3 for the CUDA version (Shashank)
+	Implement algorithmic designs 1 and 3 for the CUDA version (Kylee)
+
+Second Half
+Get more data sets and use them to collect more measurements for all the implementations. (Both)
+
+
+Week of 12/3 - 12/7:
+Entire Week
+	Work on additional optimizations on each architecture (Both):
+		Are we using our cache correctly?
+		Have we reduced false sharing?
+		Are there faster ways to do partials sums and add the results together?
+		Can we reorganize the data for faster performance on larger datasets?
+		Where can we sacrifice a little correctness for faster performance?
+
+Week of 12/10 - 12/14:
+	Look into OpenCL if time permits or continue working on optimizations of 12/3-12/7 week otherwise.
+
+## Concerns:
+
+Due to the nature of Gradient Descent, it is very much a sequential algorithm to parallelizing it can be a little tricky as we trade-off correctness to get some speedup. We believe we can get up to 8x speedup based on the papers we read, but the results may be very data dependent. Thus, the biggest concern at the time is whether we will actually achieve enough speedup.
+Currently, we are actually observing some slowdown by using more threads. This could be due to caching problems, synchronization overheads, or something else entirely. Either way, this was an unexpected problem we didn’t anticipate, so we might need to spend some additional time focusing on improving the code. A possible fix that we will experiment with is to include padding in our structs to remove false sharing and lower communication times for each processor as the number of threads increases.
+
+
