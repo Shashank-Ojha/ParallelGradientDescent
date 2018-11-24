@@ -162,7 +162,8 @@ estimate_t* sgd(int N, float* x, float* y, int num_threads,
 
 int main(int argc, const char *argv[])
 {
-	 using namespace std::chrono;
+	   using namespace std::chrono;
+
      typedef std::chrono::high_resolution_clock Clock;
      typedef std::chrono::duration<double> dsec;
      _argc = argc - 1;
@@ -173,10 +174,10 @@ int main(int argc, const char *argv[])
 
      int num_of_threads = get_option_int("-n", 1);
 
-	 num_t* partial_sums_db0 = (num_t*)malloc(sizeof(num_t) * num_of_threads);
-	 num_t* partial_sums_db1 = (num_t*)malloc(sizeof(num_t) * num_of_threads);
-	 num_t* results_b0 = (num_t*)malloc(sizeof(num_t) * num_of_threads);
-	 num_t* results_b1 = (num_t*)malloc(sizeof(num_t) * num_of_threads);
+		 num_t* partial_sums_db0 = (num_t*)malloc(sizeof(num_t) * num_of_threads);
+		 num_t* partial_sums_db1 = (num_t*)malloc(sizeof(num_t) * num_of_threads);
+		 num_t* results_b0 = (num_t*)malloc(sizeof(num_t) * num_of_threads);
+		 num_t* results_b1 = (num_t*)malloc(sizeof(num_t) * num_of_threads);
 
      int error = 0;
 
@@ -223,41 +224,40 @@ int main(int argc, const char *argv[])
      #pragma offload target(mic) \
        inout(x: length(N) INOUT) \
        inout(y: length(N) INOUT) \
-	   inout(partial_sums_db0: length(num_of_threads) INOUT) \
+	     inout(partial_sums_db0: length(num_of_threads) INOUT) \
        inout(partial_sums_db1: length(num_of_threads) INOUT) \
-	   inout(results_b0: length(num_of_threads) INOUT) \
-	   inout(results_b1: length(num_of_threads) INOUT)
-      #endif
+	     inout(results_b0: length(num_of_threads) INOUT) \
+	     inout(results_b1: length(num_of_threads) INOUT)
+     #endif
         {
-          srand(418);
+           srand(418);
 
-		  auto batch_start = Clock::now();
-	      double batch_time = 0;
+		  	 	 auto batch_start = Clock::now();
+	         double batch_time = 0;
 
-          estimate_t* estimate_bgd = bgd(
-			  N, x, y, num_of_threads,
-			  partial_sums_db0, partial_sums_db1
-		  );
-          printf("Batch: y = %.2f (x) + %0.2f\n", estimate_bgd -> b1, estimate_bgd -> b0);
+           estimate_t* estimate_bgd = bgd(N, x, y, num_of_threads,
+			  	 																partial_sums_db0,
+																					partial_sums_db1);
 
-		  auto batch_end = Clock::now();
-		  batch_time += duration_cast<dsec>(batch_end - batch_start).count();
-	  	  printf("Computation Time BGD: %lf.\n", batch_time);
 
-		  auto stochastic_start = Clock::now();
-		  double stochastic_time = 0;
+           printf("Batch: y = %.2f (x) + %0.2f\n", estimate_bgd -> b1, estimate_bgd -> b0);
 
-          estimate_t* estimate_sgd = sgd(
-			  N, x, y, num_of_threads,
-			  results_b0, results_b1
-		  );
-          printf("Stochastic: y = %.2f (x) + %0.2f\n", estimate_sgd -> b1, estimate_sgd -> b0);
+		  	   auto batch_end = Clock::now();
+		       batch_time += duration_cast<dsec>(batch_end - batch_start).count();
+	  	     printf("Computation Time BGD: %lf.\n", batch_time);
 
-		  auto stochastic_end = Clock::now();
-		  stochastic_time += duration_cast<dsec>(stochastic_end - stochastic_start).count();
-	  	  printf("Computation Time SGD: %lf.\n", stochastic_time);
+		  	   auto stochastic_start = Clock::now();
+		  	   double stochastic_time = 0;
 
-        }
+           estimate_t* estimate_sgd = sgd(N, x, y, num_of_threads,
+						 															results_b0, results_b1);
+
+           printf("Stochastic: y = %.2f (x) + %0.2f\n", estimate_sgd -> b1, estimate_sgd -> b0);
+
+				   auto stochastic_end = Clock::now();
+				   stochastic_time += duration_cast<dsec>(stochastic_end - stochastic_start).count();
+			  	 printf("Computation Time SGD: %lf.\n", stochastic_time);
+		     }
 
 
 	  free(x);
