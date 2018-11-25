@@ -117,53 +117,20 @@ estimate_t* bgd(int N, float* x, float* y, int num_threads,
   return estimate;
 }
 
+float calculate_error(int N, float* x, float* y, estimate_t estimate) {
+	float res = 0;
+	float b0 = estimate.b0;
+	float b1 = estimate.b1;
+	for (int i = 0; i < N; i++) {
+		res += (y[i] - b0 - x[i] * b1) * (y[i] - b0 - x[i] * b1) / static_cast<float>(N);
+	}
 
-estimate_t* sgd(int N, float* x, float* y, int num_threads,
-				num_t* results_b0, num_t* results_b1){
-  omp_set_num_threads(num_threads);
-  estimate_t estimate;
-  estimate.b0 = INIT_B0;
-  estimate.b1 = INIT_B1;
-
-  int j, tid;
-
-  // Run sgd in parallel to average the results
-  #pragma omp parallel for default(shared) private(j, tid, estimate) schedule(static)
-  for(j = 0; j < num_threads; j++){
-	  for(int i = 0; i < NUM_ITER_STOCH; i++){
-	    //pick a point randomly
-	    int pi = rand() % N;
-
-	    float db0 = getdB0(x[pi], y[pi], &estimate);
-	    float db1 = getdB1(x[pi], y[pi], &estimate);
-
-		estimate.b0 = (estimate.b0) - (STEP_SIZE_STOCH * db0);
-	    estimate.b1 = (estimate.b1) - (STEP_SIZE_STOCH * db1);
-	  }
-	  results_b0[j].num = estimate.b0;
-	  results_b1[j].num = estimate.b1;
-  }
-
-  float avg_b0 = 0;
-  float avg_b1 = 0;
-  for(int j = 0; j < num_threads; j++) {
-	  avg_b0 += results_b0[j].num;
-	  avg_b1 += results_b1[j].num;
-  }
-
-  avg_b0 = avg_b0 / static_cast<float>(num_threads);
-  avg_b1 = avg_b1 / static_cast<float>(num_threads);
-  estimate_t* ret = (estimate_t*)malloc(sizeof(estimate_t));
-  ret -> b0 = avg_b0;
-  ret -> b1 = avg_b1;
-
-  return ret;
+	return res;
 }
 
 int main(int argc, const char *argv[])
 {
-	   using namespace std::chrono;
-
+	 using namespace std::chrono;
      typedef std::chrono::high_resolution_clock Clock;
      typedef std::chrono::duration<double> dsec;
      _argc = argc - 1;
@@ -174,10 +141,10 @@ int main(int argc, const char *argv[])
 
      int num_of_threads = get_option_int("-n", 1);
 
-		 num_t* partial_sums_db0 = (num_t*)malloc(sizeof(num_t) * num_of_threads);
-		 num_t* partial_sums_db1 = (num_t*)malloc(sizeof(num_t) * num_of_threads);
-		 num_t* results_b0 = (num_t*)malloc(sizeof(num_t) * num_of_threads);
-		 num_t* results_b1 = (num_t*)malloc(sizeof(num_t) * num_of_threads);
+	 num_t* partial_sums_db0 = (num_t*)malloc(sizeof(num_t) * num_of_threads);
+	 num_t* partial_sums_db1 = (num_t*)malloc(sizeof(num_t) * num_of_threads);
+	 num_t* results_b0 = (num_t*)malloc(sizeof(num_t) * num_of_threads);
+	 num_t* results_b1 = (num_t*)malloc(sizeof(num_t) * num_of_threads);
 
      int error = 0;
 
@@ -216,6 +183,9 @@ int main(int argc, const char *argv[])
 
      fclose(input);
 
+	 double batch_time, stochastic_time;
+	 estimate_t estimate_bgd, estimate_sgd;
+
      #ifdef RUN_MIC /* Use RUN_MIC to distinguish between the target of compilation */
 
        /* This pragma means we want the code in the following block be executed in
@@ -224,41 +194,48 @@ int main(int argc, const char *argv[])
      #pragma offload target(mic) \
        inout(x: length(N) INOUT) \
        inout(y: length(N) INOUT) \
-	     inout(partial_sums_db0: length(num_of_threads) INOUT) \
+	   inout(partial_sums_db0: length(num_of_threads) INOUT) \
        inout(partial_sums_db1: length(num_of_threads) INOUT) \
-	     inout(results_b0: length(num_of_threads) INOUT) \
-	     inout(results_b1: length(num_of_threads) INOUT)
-     #endif
+	   inout(results_b0: length(num_of_threads) INOUT) \
+	   inout(results_b1: length(num_of_threads) INOUT)
+      #endif
         {
-           srand(418);
+          srand(418);
 
-		  	 	 auto batch_start = Clock::now();
-	         double batch_time = 0;
+		  auto batch_start = Clock::now();
 
-           estimate_t* estimate_bgd = bgd(N, x, y, num_of_threads,
-			  	 																partial_sums_db0,
-																					partial_sums_db1);
+          estimate_bgd = *bgd(
+			  N, x, y, num_of_threads,
+			  partial_sums_db0, partial_sums_db1
+		  );
 
+		  auto batch_end = Clock::now();
+		  batch_time = duration_cast<dsec>(batch_end - batch_start).count();
 
-           printf("Batch: y = %.2f (x) + %0.2f\n", estimate_bgd -> b1, estimate_bgd -> b0);
+		  auto stochastic_start = Clock::now();
 
-		  	   auto batch_end = Clock::now();
-		       batch_time += duration_cast<dsec>(batch_end - batch_start).count();
-	  	     printf("Computation Time BGD: %lf.\n", batch_time);
+          estimate_sgd = *sgd(
+			  N, x, y, num_of_threads,
+			  results_b0, results_b1
+		  );
 
-		  	   auto stochastic_start = Clock::now();
-		  	   double stochastic_time = 0;
+		  auto stochastic_end = Clock::now();
+		  stochastic_time = duration_cast<dsec>(stochastic_end - stochastic_start).count();
+        }
 
-           estimate_t* estimate_sgd = sgd(N, x, y, num_of_threads,
-						 															results_b0, results_b1);
+	  float reference = 110.2574;
+	  float bgd_error = calculate_error(N, x, y, estimate_bgd);
+	  float sgd_error = calculate_error(N, x, y, estimate_sgd);
+	  float bgd_precent_error = (bgd_error - reference) / reference;
+	  float sgd_precent_error = (sgd_error - reference) / reference;
 
-           printf("Stochastic: y = %.2f (x) + %0.2f\n", estimate_sgd -> b1, estimate_sgd -> b0);
+	  printf("Batch: y = %.2f (x) + %0.2f\n", estimate_bgd.b1, estimate_bgd.b0);
+	  printf("Batch MSE: %0.2f\tPrecent Error: %0.2f\n", bgd_error, bgd_precent_error);
+	  printf("Computation Time BGD: %lf.\n\n", batch_time);
 
-				   auto stochastic_end = Clock::now();
-				   stochastic_time += duration_cast<dsec>(stochastic_end - stochastic_start).count();
-			  	 printf("Computation Time SGD: %lf.\n", stochastic_time);
-		     }
-
+	  printf("Stochastic: y = %.2f (x) + %0.2f\n", estimate_sgd.b1, estimate_sgd.b0);
+	  printf("Stochastic MSE: %0.2f\tPrecent Error: %0.2f\n", sgd_error, sgd_precent_error);
+	  printf("Computation Time SGD: %lf.\n", stochastic_time);
 
 	  free(x);
 	  free(y);
