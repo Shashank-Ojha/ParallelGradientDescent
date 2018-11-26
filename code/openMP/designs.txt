@@ -46,8 +46,4 @@ Design Implementations:
 
 Plan for tomorrow:
 
-Find larger data sets
-Figure out how to use functions from other files and organize the directory
 Code up all 4 designs for OpenMP
-
-Fix my repo
