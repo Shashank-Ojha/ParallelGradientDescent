@@ -7,7 +7,7 @@
 #include <algorithm>
 #include <climits>
 
-#include "regression.h"
+#include "gd.h"
 #include "linear_regression.h"
 #include "sgd_designs.h"
 
