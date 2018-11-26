@@ -7,11 +7,11 @@
 #include <algorithm>
 #include <climits>
 
-#include "regression.h"
-#include "sgd_designs.h"
+#include "sgd_1.h"
 
-estimate_t* sgd_design1(int N, float* x, float* y, int num_threads,
+estimate_t* sgd(int N, float* x, float* y, int num_threads,
 				num_t* partial_db0, num_t* partial_db1){
+
   estimate_t *estimate = (estimate_t*)malloc(sizeof(estimate_t));
   estimate -> b0 = INIT_B0;
   estimate -> b1 = INIT_B1;
@@ -50,8 +50,8 @@ estimate_t* sgd_design1(int N, float* x, float* y, int num_threads,
                 avg_b0 += partial_db0[k];
                 avg_b1 += partial_db1[k];
             }
-            estimate -> b0 -= STEP_SIZE_STOCH * avg_b0 / (static_cast<float>(BATCH_SIZE_STOCH));
-            estimate -> b1 -= STEP_SIZE_STOCH * avg_b1 / (static_cast<float>(BATCH_SIZE_STOCH));
+            estimate -> b0 -= STEP_SIZE_STOCH * avg_b0 / (static_cast<float>(num_threads));
+            estimate -> b1 -= STEP_SIZE_STOCH * avg_b1 / (static_cast<float>(num_threads));
         }
         #pragma omp barrier
 	  }

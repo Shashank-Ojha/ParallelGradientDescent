@@ -14,8 +14,7 @@
 
 #include "regression.h"
 #include "mic.h"
-#include "sgd_designs.h"
-
+#include "sgd_1.h"
 
 #define BUFSIZE 1024
 
@@ -215,7 +214,7 @@ int main(int argc, const char *argv[])
 
 		  auto stochastic_start = Clock::now();
 
-          estimate_sgd = *sgd_design1(
+          estimate_sgd = *sgd(
 			  N, x, y, num_of_threads,
 			  partial_sums_db0, partial_sums_db1
 		  );

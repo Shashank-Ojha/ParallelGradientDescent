@@ -7,7 +7,6 @@
 #include <algorithm>
 #include <climits>
 
-#include "regression.h"
 #include "sgd_designs.h"
 
 estimate_t* sgd_design2(int N, float* x, float* y, int num_threads,

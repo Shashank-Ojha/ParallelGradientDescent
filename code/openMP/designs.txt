@@ -1,0 +1,53 @@
+Design Implementations:
+
+// 1 Update at a time
+
+        1.
+
+        for each thread:
+          compute average of points in mini batch
+          write to shared partial sums array
+          //barrier
+          master thread averages each threads computation and updates estimate
+          //barrier
+
+          if(approx is close enough): break
+          else loop
+
+        2. //Only applies when there's a lot of data
+           //Reorganize/Partition the data so each thread can access its set of data faster
+        for each thread:
+          compute average of points in mini batch (Only sample from its pool of points)
+          write to shared partial sums array
+          //barrier
+          master thread averages each threads computation and updates estimate
+          //barrier
+
+          if(approx is close enough): break
+          else loop
+
+
+
+// 1 Update (but updates are averages of k updates)
+
+        3.
+
+        for each thread:
+          for k iters
+              compute average of points in mini batch
+              write to shared partial sums array
+              Updates estimate_t
+
+          master threads averages estimates
+
+          if(approx is close enough): break
+          else loop
+
+
+Plan for tomorrow:
+
+Find larger data sets
+Figure out how to use functions from other files and organize the directory
+Code up all 4 designs for OpenMP
+
+Fix my repo
