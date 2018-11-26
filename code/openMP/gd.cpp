@@ -14,7 +14,7 @@
 
 #include "mic.h"
 
-#include "regression.h"
+#include "gd.h"
 #include "linear_regression.h"
 #include "sgd_designs.h"
 
@@ -62,49 +62,6 @@ static void show_help(const char *program_path)
     printf("\t-i <SA_iters>\n");
 }
 
-estimate_t* bgd(int N, float* x, float* y, int num_threads)
-{
-	  omp_set_num_threads(num_threads);
-		num_t* partial_db0 = (num_t*)malloc(sizeof(num_t) * num_threads);
-		num_t* partial_db1 = (num_t*)malloc(sizeof(num_t) * num_threads);
-	  estimate_t* estimate = (estimate_t*)malloc(sizeof(estimate_t));
-	  estimate -> b0 = 0.0;
-	  estimate -> b1 = 0.0;
-
-	  for(int i = 0; i < NUM_ITER_BATCH; i++)
-		{
-				for(int k = 0; k < num_threads; k++) {
-					partial_db0[k].num = 0;
-					partial_db1[k].num = 0;
-				}
-
-		    float db0 = 0;
-		    float db1 = 0;
-				int j, tid;
-
-		    #pragma omp parallel for default(shared) private(j, tid) schedule(static)
-			    for(j = 0; j < N; j++)
-			    {
-			      float local_db0 = (1.0 / static_cast<float>(N)) * getdB0(x[j], y[j], estimate);
-			      float local_db1 = (1.0 / static_cast<float>(N)) * getdB1(x[j], y[j], estimate);
-				  	tid = omp_get_thread_num();
-					  // TODO: change the partial sum arrays so they have padding
-					  // 		right now, only a float so there is false sharing and so it is slower
-					  partial_db0[tid].num += local_db0;
-					  partial_db1[tid].num += local_db1;
-			  	}
-
-				for (int k = 0; k < num_threads; k++)
-				{
-					db0 += partial_db0[k].num;
-					db1 += partial_db1[k].num;
-				}
-
-		    estimate -> b0 = (estimate -> b0) - (STEP_SIZE_BATCH * db0);
-		    estimate -> b1 = (estimate -> b1) - (STEP_SIZE_BATCH * db1);
-  	}
-  	return estimate;
-}
 
 int main(int argc, const char *argv[])
 {
@@ -179,13 +136,28 @@ int main(int argc, const char *argv[])
 
 		  	 auto stochastic_start = Clock::now();
 
-      	 estimate_sgd = *sgd_design1(N, x, y, num_of_threads);
+      	 estimate_sgd = *sgd_design5(N, x, y, num_of_threads);
 
 		     auto stochastic_end = Clock::now();
 		     stochastic_time = duration_cast<dsec>(stochastic_end - stochastic_start).count();
       }
 
-	  float reference = 110.2574;
+		// 100
+	  //float reference = 110.2574;
+
+		// 1000
+		//0.32549(x)  -  8.81014
+		//float reference = 0.3301031;
+
+		// 5000
+		//0.59644(x)  -  24.37033
+		float reference = 0.3439843;
+
+		// 10000
+		//0.90189(x)  -  41.86405
+		//float reference = 0.3035303;
+
+
 	  float bgd_error = calculate_error(N, x, y, estimate_bgd);
 	  float sgd_error = calculate_error(N, x, y, estimate_sgd);
 	  float bgd_precent_error = (bgd_error - reference) / reference;
