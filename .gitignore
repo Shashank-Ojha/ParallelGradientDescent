@@ -32,5 +32,7 @@
 *.app
 
 #Job Outputs
-ksantos_*
-shashano_*
+code/openMP/job_outputs/*
+
+#Templates
+code/openMP/templates/*
