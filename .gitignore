@@ -30,6 +30,7 @@
 *.exe
 *.out
 *.app
+gd
 
 #Job Outputs
 code/openMP/job_outputs/*

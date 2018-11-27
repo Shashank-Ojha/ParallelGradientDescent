@@ -30,13 +30,12 @@ estimate_t* sgd_design5(int N, float* x, float* y, int num_threads){
   }
 
 	estimate_t* ret = (estimate_t*)malloc(sizeof(estimate_t));
+	ret -> b1 = 0.0;
 
   for(int j = 0; j < num_threads; j++) {
-	  ret -> b0 += estimates[j].b0;
 	  ret -> b1 += estimates[j].b1;
   }
 
-  ret -> b0 /= static_cast<float>(num_threads);
   ret -> b1 /= static_cast<float>(num_threads);
 
   return ret;

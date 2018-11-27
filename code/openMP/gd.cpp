@@ -163,11 +163,11 @@ int main(int argc, const char *argv[])
 	  float bgd_precent_error = (bgd_error - reference) / reference;
 	  float sgd_precent_error = (sgd_error - reference) / reference;
 
-	  printf("Batch: y = %.2f (x) + %0.2f\n", estimate_bgd.b1, estimate_bgd.b0);
+	  printf("Batch: y = %.2f (x)\n", estimate_bgd.b1);
 	  printf("Batch MSE: %0.2f\tPrecent Error: %0.2f\n", bgd_error, bgd_precent_error);
 	  printf("Computation Time BGD: %lf.\n\n", batch_time);
 
-	  printf("Stochastic: y = %.2f (x) + %0.2f\n", estimate_sgd.b1, estimate_sgd.b0);
+	  printf("Stochastic: y = %.2f (x)\n", estimate_sgd.b1);
 	  printf("Stochastic MSE: %0.2f\tPrecent Error: %0.2f\n", sgd_error, sgd_precent_error);
 	  printf("Computation Time SGD: %lf.\n", stochastic_time);
 
