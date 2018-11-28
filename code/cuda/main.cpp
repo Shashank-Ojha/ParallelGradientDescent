@@ -5,9 +5,10 @@
 
 #include "regression.h"
 
+
 estimate_t* bgdCudaCopy(int N, float* x, float* y);
 estimate_t* bgdCuda(int N, float* x, float* y);
-estimate_t* sgdCuda(int N, float* x, float* y);
+estimate_t* sgdCuda(int N, float* x, float* y, float alpha, float opt);
 void printCudaInfo();
 
 void usage(const char* progname) {
@@ -37,7 +38,7 @@ estimate_t* bgd(int N, float* x, float* y){
       db1 += (1.0 / static_cast<float>(N)) * getdB1(x[j], y[j], estimate);
     }
 
-    estimate -> b1 = (estimate -> b1) - (STEP_SIZE * db1);
+    estimate -> b1 = (estimate -> b1) - (STEP_SIZE_BATCH * db1);
   }
   return estimate;
 }
@@ -46,14 +47,14 @@ estimate_t* bgd(int N, float* x, float* y){
 estimate_t* sgd(int N, float* x, float* y){
   estimate_t* estimate = (estimate_t*)malloc(sizeof(estimate_t));
   estimate -> b1 = INIT_B1;
-
+  printf("num iter: %d\n", NUM_ITER_STOCH);
   for(int i = 0; i < NUM_ITER_STOCH; i++){
     //pick a point randomly
     int pi = rand() % N;
 
-    float db1 = getdB1(x[pi], y[pi], estimate);
+    float db1 = (1.0 / static_cast<float>(N)) * getdB1(x[pi], y[pi], estimate);
 
-    estimate -> b1 = (estimate -> b1) - (STEP_SIZE * db1);
+    estimate -> b1 = (estimate -> b1) - (STEP_SIZE_STOCH * db1);
   }
 
   return estimate;
@@ -113,11 +114,12 @@ int main(int argc, char** argv)
     estimate_t* estimate_sgd = sgd(N, x, y);
     printf("Stochastic: y = %.2f (x)\n", estimate_sgd -> b1);
 
-    // estimate_t* estimate_bgdCudaCopy = bgdCudaCopy(N, x, y);
-    // printf("Cuda Batch Copy: y = %.2f (x) + %0.2f\n", estimate_bgdCudaCopy -> b1, estimate_bgdCudaCopy -> b0);
-    //
     // estimate_t* estimate_bgdCuda = bgdCuda(N, x, y);
-    // printf("Cuda Batch: y = %.2f (x) + %0.2f\n", estimate_bgdCuda -> b1, estimate_bgdCuda -> b0);
+    // printf("Cuda Batch: y = %.2f (x)\n", estimate_bgdCuda -> b1);
+
+
+    estimate_t* estimate_sgdCuda = sgdCuda(N, x, y, 0.01, 3.136258);
+    printf("Cuda Stochastic: y = %.2f (x)\n", estimate_sgdCuda -> b1);
 
     return 0;
 }
