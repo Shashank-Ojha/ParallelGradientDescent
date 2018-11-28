@@ -18,13 +18,7 @@ void usage(const char* progname) {
 }
 
 float evaluate(estimate_t* estimate, float x){
-  return (estimate->b1)*x + (estimate->b0);
-}
-
-
-float getdB0(float x, float y, estimate_t* estimate){
-  float prediction = evaluate(estimate, x);
-  return -2.0 * (y-prediction);
+  return (estimate->b1)*x;
 }
 
 float getdB1(float x, float y, estimate_t* estimate){
@@ -34,22 +28,15 @@ float getdB1(float x, float y, estimate_t* estimate){
 
 estimate_t* bgd(int N, float* x, float* y){
   estimate_t* estimate = (estimate_t*)malloc(sizeof(estimate_t));
-  estimate -> b0 = INIT_B0;
   estimate -> b1 = INIT_B1;
 
-  for(int i = 0; i < NUM_ITER; i++){
-
-    float db0 = 0;
+  for(int i = 0; i < NUM_ITER_BATCH; i++){
     float db1 = 0;
     for(int j = 0; j < N; j++)
     {
-      db0 += (1.0 / static_cast<float>(N)) * getdB0(x[j], y[j], estimate);
       db1 += (1.0 / static_cast<float>(N)) * getdB1(x[j], y[j], estimate);
     }
-    if(i < 5){
-      printf("original: %f \t %f \n", db0, db1);
-    }
-    estimate -> b0 = (estimate -> b0) - (STEP_SIZE * db0);
+
     estimate -> b1 = (estimate -> b1) - (STEP_SIZE * db1);
   }
   return estimate;
@@ -58,17 +45,14 @@ estimate_t* bgd(int N, float* x, float* y){
 
 estimate_t* sgd(int N, float* x, float* y){
   estimate_t* estimate = (estimate_t*)malloc(sizeof(estimate_t));
-  estimate -> b0 = INIT_B0;
   estimate -> b1 = INIT_B1;
 
-  for(int i = 0; i < NUM_ITER; i++){
+  for(int i = 0; i < NUM_ITER_STOCH; i++){
     //pick a point randomly
     int pi = rand() % N;
 
-    float db0 = getdB0(x[pi], y[pi], estimate);
     float db1 = getdB1(x[pi], y[pi], estimate);
 
-    estimate -> b0 = (estimate -> b0) - (STEP_SIZE * db0);
     estimate -> b1 = (estimate -> b1) - (STEP_SIZE * db1);
   }
 
@@ -124,14 +108,13 @@ int main(int argc, char** argv)
     srand(418);
 
     estimate_t* estimate_bgd = bgd(N, x, y);
-    printf("Batch: y = %.2f (x) + %0.2f\n", estimate_bgd -> b1, estimate_bgd -> b0);
+    printf("Batch: y = %.2f (x)\n", estimate_bgd -> b1);
 
     estimate_t* estimate_sgd = sgd(N, x, y);
-    printf("Stochastic: y = %.2f (x) + %0.2f\n", estimate_sgd -> b1, estimate_sgd -> b0);
+    printf("Stochastic: y = %.2f (x)\n", estimate_sgd -> b1);
 
     // estimate_t* estimate_bgdCudaCopy = bgdCudaCopy(N, x, y);
     // printf("Cuda Batch Copy: y = %.2f (x) + %0.2f\n", estimate_bgdCudaCopy -> b1, estimate_bgdCudaCopy -> b0);
-    //
     //
     // estimate_t* estimate_bgdCuda = bgdCuda(N, x, y);
     // printf("Cuda Batch: y = %.2f (x) + %0.2f\n", estimate_bgdCuda -> b1, estimate_bgdCuda -> b0);
