@@ -65,18 +65,25 @@ estimate_t* bgd(int N, float* x, float* y, int num_threads)
   	return estimate;
 }
 
+estimate_t* sgd_step(int N, float* x, float* y, estimate_t* estimate)
+{
+    int j = rand() % N;
+
+    float db1 = (1.0 / static_cast<float>(N)) * getdB1(x[j], y[j], estimate);
+
+    estimate -> b1 -= (STEP_SIZE_STOCH * db1);
+
+  	return estimate;
+}
+
 estimate_t* sgd(int N, float* x, float* y)
 {
 	  estimate_t* estimate = (estimate_t*)malloc(sizeof(estimate_t));
 	  estimate -> b1 = 0.0;
 
-	  for(int i = 0; i < NUM_ITER_BATCH; i++)
+	  for(int i = 0; i < NUM_ITER_STOCH; i++)
 		{
-        int j = rand() % N;
-
-		    float db1 = (1.0 / static_cast<float>(N)) * getdB1(x[j], y[j], estimate);
-
-		    estimate -> b1 = (estimate -> b1) - (STEP_SIZE_BATCH * db1);
+        estimate = sgd_step(N, x, y, estimate);
   	}
   	return estimate;
 }

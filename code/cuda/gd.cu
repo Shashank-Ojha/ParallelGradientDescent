@@ -2,6 +2,7 @@
 #include <cuda.h>
 #include <cuda_runtime.h>
 #include <driver_functions.h>
+#include <curand.h>
 
 #include "regression.h"
 
@@ -30,13 +31,7 @@ void printCudaInfo()
 
 __device__ __inline__ float
 evaluateCuda(estimate_t* estimate, float x){
-  return (estimate->b1)*x + (estimate->b0);
-}
-
-__device__ __inline__ float
-getdB0Cuda(float x, float y, estimate_t* estimate){
-  float prediction = evaluateCuda(estimate, x);
-  return -2.0 * (y-prediction);
+  return (estimate->b1)*x;
 }
 
 __device__ __inline__ float
@@ -45,61 +40,74 @@ getdB1Cuda(float x, float y, estimate_t* estimate){
   return -2.0 * (y-prediction)*x;
 }
 
+// estimate_t* bgdCuda(int N, float* x, float* y){
+//
+//   float* device_X;
+//   float* device_Y;
+//   float* device_result;
+//
+//   cudaMalloc((void **)&device_X, sizeof(float) * N);
+//   cudaMalloc((void **)&device_Y, sizeof(float) * N);
+//   cudaMalloc((void **)&device_result, sizeof(float));
+//
+//   cudaMemcpy(device_X, x, N * sizeof(float),
+//              cudaMemcpyHostToDevice);
+//
+//   cudaMemcpy(device_Y, y, N * sizeof(float),
+//              cudaMemcpyHostToDevice);
+//
+//   int blocks = 1;
+//   int threadsPerBlock = N; //ASSUMING N < 1024
+//   // int totalThreads = blocks * threadsPerBlock;
+//
+//   descend<<<blocks, threadsPerBlock>>>(N, device_X, device_Y, device_result);
+//
+//   float result;
+//   cudaMemcpy(&result, device_result, sizeof(float),
+//              cudaMemcpyDeviceToHost);
+//
+//   estimate_t* estimate = (estimate_t*)malloc(sizeof(estimate_t));
+//   estimate -> b1 = resultArray[1];
+//
+//   return estimate;
+// }
+
+//-----------------------------------------------------------------------------
+
 // Assumes the number of indexes is equal to N
 __global__ void
-descend(int N, float* device_X, float* device_Y, float* device_result) {
+sgd_step(int N, float* device_X, float* device_Y, estimate_t* device_estimates curandState* states) {
 
   int index = blockIdx.x * blockDim.x + threadIdx.x;
-  __shared__ float db0All;
-  __shared__ float db1All;
-  __shared__ estimate_t estimate;
 
-  if(index == 0){
-    db0All = 0.0;
-    db1All = 0.0;
-    estimate.b0 = INIT_B0;
-    estimate.b1 = INIT_B1;
-  }
+  int pi = CURAND() * N;
 
-  __syncthreads();
+  float db1 = (1.0 / static_cast<float>(N)) * getdB1Cuda(device_X[pi], device_Y[pi],
+                                                    device_estimates + index);
 
-  for(int i = 0; i < NUM_ITER; i++)
-  {
-    float db0 = (1.0 / static_cast<float>(N)) * getdB0Cuda(device_X[index], device_Y[index], &estimate);
-    float db1 = (1.0 / static_cast<float>(N)) * getdB1Cuda(device_X[index], device_Y[index], &estimate);
+  device_estimates[index].b1 -= (STEP_SIZE_STOCH * db1);
 
-    atomicAdd(&db0All, db0);
-    atomicAdd(&db1All, db1);
-
-    __syncthreads();
-
-    if(i < 5 && index == 0){
-      printf("cuda: %f \t %f \n", db0All, db1All);
-    }
-
-    if(index == 0){
-      estimate.b0 = (estimate.b0) - (STEP_SIZE * db0All);
-      estimate.b1 = (estimate.b1) - (STEP_SIZE * db1All);
-    }
-
-    __syncthreads();
-  }
-
-  if(index == 0){ //root
-    device_result[0] = estimate.b0;
-    device_result[1] = estimate.b1;
-  }
 }
 
-estimate_t* bgdCuda(int N, float* x, float* y){
+estimate_t* sgdCuda(int N, float* x, float* y, float alpha, float opt){
 
   float* device_X;
   float* device_Y;
-  float* device_result;
+  estimate_t* device_estimates;
+
+  curandState *states;
+  cudaMalloc((void**)&states, totalThreads * sizeof(curandState));
+
+
+  int blocks = 8;
+  int threadsPerBlock = 128;
+  int totalThreads = blocks * threadsPerBlock;
 
   cudaMalloc((void **)&device_X, sizeof(float) * N);
   cudaMalloc((void **)&device_Y, sizeof(float) * N);
-  cudaMalloc((void **)&device_result, sizeof(float) * 2);
+  cudaMalloc((void **)&device_estimates, sizeof(estimate_t) * totalThreads);
+
+  estimate_t* estimates = (estimate_t*)calloc(totalThreads, sizeof(estimate_t));
 
   cudaMemcpy(device_X, x, N * sizeof(float),
              cudaMemcpyHostToDevice);
@@ -107,60 +115,34 @@ estimate_t* bgdCuda(int N, float* x, float* y){
   cudaMemcpy(device_Y, y, N * sizeof(float),
              cudaMemcpyHostToDevice);
 
-  int blocks = 1;
-  int threadsPerBlock = N; //ASSUMING N < 1024
-  // int totalThreads = blocks * threadsPerBlock;
+  cudaMemcpy(device_estimates, estimates, totalThreads * sizeof(estimate_t),
+             cudaMemcpyHostToDevice);
 
-  descend<<<blocks, threadsPerBlock>>>(N, device_X, device_Y, device_result);
+  estimate_t* ret = (estimate_t*)malloc(sizeof(estimate_t));
 
-  float resultArray[2];
-  cudaMemcpy(&resultArray, device_result, sizeof(float) * 2,
-             cudaMemcpyDeviceToHost);
+  float upper = opt + (alpha/2.0)*opt;
+  float lower = opt - (alpha/2.0)*opt;
 
-  estimate_t* estimate = (estimate_t*)malloc(sizeof(estimate_t));
-  estimate -> b0 = resultArray[0];
-  estimate -> b1 = resultArray[1];
+  int num_steps = 0;
+  while(true)
+  {
+    sgd_step<<<blocks, threadsPerBlock>>>(N, device_X, device_Y, device_estimates, states);
 
-  return estimate;
-}
+    cudaMemcpy(estimates, device_estimates, totalThreads * sizeof(estimate_t),
+               cudaMemcpyDeviceToHost);
 
-
-float evaluateCudaCopy(estimate_t* estimate, float x){
-  return (estimate->b1)*x + (estimate->b0);
-}
-
-float getdB0CudaCopy(float x, float y, estimate_t* estimate){
-  float prediction = evaluateCudaCopy(estimate, x);
-  return -2.0 * (y-prediction);
-}
-
-float getdB1CudaCopy(float x, float y, estimate_t* estimate){
-  float prediction = evaluateCudaCopy(estimate, x);
-  return -2.0 * (y-prediction)*x;
-}
-
-estimate_t* bgdCudaCopy(int N, float* x, float* y)
-{
-
-  estimate_t* estimate = (estimate_t*)malloc(sizeof(estimate_t));
-  estimate -> b0 = 0.0;
-  estimate -> b1 = 0.0;
-
-  //pick a point randomly
-  for(int i = 0; i < NUM_ITER; i++){
-
-    float db0 = 0;
-    float db1 = 0;
-    for(int j = 0; j < N; j++)
-    {
-      db0 += (1.0 / static_cast<float>(N)) * getdB0CudaCopy(x[j], y[j], estimate);
-      db1 += (1.0 / static_cast<float>(N)) * getdB1CudaCopy(x[j], y[j], estimate);
+    ret -> b1 = 0.0;
+    for(int j = 0; j < totalThreads; j++) {
+      ret -> b1 += estimates[j].b1;
     }
-    if(i == 0){
-      // printf("%f \t %f \n", db0, db1);
-    }
-    estimate -> b0 = (estimate -> b0) - (STEP_SIZE * db0);
-    estimate -> b1 = (estimate -> b1) - (STEP_SIZE * db1);
+
+    ret -> b1 /= static_cast<float>(totalThreads);
+
+    if(num_steps > ITER_LIMIT || (lower < (ret -> b1) && (ret -> b1) < upper))
+      break;
+
+    num_steps += 1;
   }
-  return estimate;
+
+  return ret;
 }

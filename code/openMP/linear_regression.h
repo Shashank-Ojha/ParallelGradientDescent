@@ -13,4 +13,6 @@ float calculate_error(int N, float* x, float* y, estimate_t estimate);
 
 estimate_t* bgd(int N, float* x, float* y, int num_threads);
 
+estimate_t* sgd_step(int N, float* x, float* y, estimate_t* estimate);
+
 estimate_t* sgd(int N, float* x, float* y);

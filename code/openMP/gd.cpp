@@ -136,7 +136,7 @@ int main(int argc, const char *argv[])
 
 		  	 auto stochastic_start = Clock::now();
 
-      	 estimate_sgd = *sgd_design5(N, x, y, num_of_threads);
+      	 estimate_sgd = *sgd_design5(N, x, y, 0.01, 3.136258, num_of_threads);
 
 		     auto stochastic_end = Clock::now();
 		     stochastic_time = duration_cast<dsec>(stochastic_end - stochastic_start).count();
@@ -150,8 +150,8 @@ int main(int argc, const char *argv[])
 		//float reference = 0.3301031;
 
 		// 5000
-		//0.59644(x)  -  24.37033
-		float reference = 0.3439843;
+		// 3.103038(x)
+		float reference = 27289.54;
 
 		// 10000
 		//0.90189(x)  -  41.86405
