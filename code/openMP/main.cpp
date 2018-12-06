@@ -79,7 +79,6 @@ int main(int argc, const char *argv[])
     int error = 0;
 
     if (input_filename == NULL) {
-       printf("Error: You need to specify -f.\n");
        error = 1;
     }
 
@@ -99,10 +98,18 @@ int main(int argc, const char *argv[])
     }
 
     int N;
+
+    float refSlope;
+    float refStdDev;
+    float refMSE;
+
     float* x;
     float* y;
 
     fscanf(input, "%d\n", &N);
+    fscanf(input, "%f\n", &refSlope);
+    fscanf(input, "%f\n", &refStdDev);
+    fscanf(input, "%f\n", &refMSE);
 
     x = (float*)malloc(sizeof(float) * N);
     y = (float*)malloc(sizeof(float) * N);
@@ -137,39 +144,26 @@ int main(int argc, const char *argv[])
 
 		  	 auto stochastic_start = Clock::now();
 
-      	 estimate_sgd = *sgd_design5(N, x, y, 0.01, 3.136258, num_of_threads);
+      	 estimate_sgd = *sgd_design5(N, x, y, alpha, refSlope, num_of_threads);
 
 		     auto stochastic_end = Clock::now();
 		     stochastic_time = duration_cast<dsec>(stochastic_end - stochastic_start).count();
       }
 
-		// 100
-	  //float reference = 110.2574;
 
-		// 1000
-		//0.32549(x)  -  8.81014
-		//float reference = 0.3301031;
+	  float bgd_MSE = calculate_error(N, x, y, estimate_bgd);
+	  float sgd_MSE = calculate_error(N, x, y, estimate_sgd);
+	  float bgd_precent_error = (bgd_MSE - refMSE) / refMSE;
+	  float sgd_precent_error = (sgd_MSE - refMSE) / refMSE;
 
-		// 5000
-		// 3.103038(x)
-		float reference = 27289.54;
-
-		// 10000
-		//0.90189(x)  -  41.86405
-		//float reference = 0.3035303;
-
-
-	  float bgd_error = calculate_error(N, x, y, estimate_bgd);
-	  float sgd_error = calculate_error(N, x, y, estimate_sgd);
-	  float bgd_precent_error = (bgd_error - reference) / reference;
-	  float sgd_precent_error = (sgd_error - reference) / reference;
+    printf("Reference: y = %.2f (x)\n", estimate_bgd.b1);
 
 	  printf("Batch: y = %.2f (x)\n", estimate_bgd.b1);
-	  printf("Batch MSE: %0.2f\tPrecent Error: %0.2f\n", bgd_error, bgd_precent_error);
+	  printf("Batch MSE: %0.2f\tPrecent Error: %0.2f\n", bgd_MSE, bgd_precent_error);
 	  printf("Computation Time BGD: %lf.\n\n", batch_time);
 
 	  printf("Stochastic: y = %.2f (x)\n", estimate_sgd.b1);
-	  printf("Stochastic MSE: %0.2f\tPrecent Error: %0.2f\n", sgd_error, sgd_precent_error);
+	  printf("Stochastic MSE: %0.2f\tPrecent Error: %0.2f\n", sgd_MSE, sgd_precent_error);
 	  printf("Computation Time SGD: %lf.\n", stochastic_time);
 
 	  free(x);

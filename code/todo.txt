@@ -1,8 +1,2 @@
-2. Metadata in input files
-    - Reference Slope
-    - Standard Deviation
-    - MSE
-    - (Update code to parse values)
-
 3. Time sgd_step function on driver
     - for CUDA and OpenMP
