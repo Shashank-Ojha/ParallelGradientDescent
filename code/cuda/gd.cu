@@ -2,7 +2,7 @@
 #include <cuda.h>
 #include <cuda_runtime.h>
 #include <driver_functions.h>
-#include <curand.h>
+#include <curand_kernel.h>
 
 #include "regression.h"
 
@@ -74,39 +74,51 @@ getdB1Cuda(float x, float y, estimate_t* estimate){
 
 //-----------------------------------------------------------------------------
 
+__global__ void
+setup_kernel(curandState *states) {
+    int index = blockIdx.x * blockDim.x + threadIdx.x;
+    /* Each thread gets same seed, a different sequence
+       number, no offset */
+    curand_init(418, index, 0, &states[index]);
+}
+
 // Assumes the number of indexes is equal to N
 __global__ void
-sgd_step(int N, float* device_X, float* device_Y, estimate_t* device_estimates curandState* states) {
+sgd_step(int N, float* device_X, float* device_Y, estimate_t* device_estimates, curandState* states) {
 
   int index = blockIdx.x * blockDim.x + threadIdx.x;
 
-  int pi = CURAND() * N;
+  curandState localState = states[index];
+
+  int pi = curand(&localState) % N;
+  states[index] = localState;
 
   float db1 = (1.0 / static_cast<float>(N)) * getdB1Cuda(device_X[pi], device_Y[pi],
                                                     device_estimates + index);
 
   device_estimates[index].b1 -= (STEP_SIZE_STOCH * db1);
-
 }
 
+// Running SGD with all threads each sampling one point and averaging result
+// after each SGD step. Checking convergence after each step
 estimate_t* sgdCuda(int N, float* x, float* y, float alpha, float opt){
 
   float* device_X;
   float* device_Y;
   estimate_t* device_estimates;
 
+  int blocks = 1;
+  int threadsPerBlock = 1;
+  int totalThreads = blocks * threadsPerBlock;
+
   curandState *states;
   cudaMalloc((void**)&states, totalThreads * sizeof(curandState));
-
-
-  int blocks = 8;
-  int threadsPerBlock = 128;
-  int totalThreads = blocks * threadsPerBlock;
 
   cudaMalloc((void **)&device_X, sizeof(float) * N);
   cudaMalloc((void **)&device_Y, sizeof(float) * N);
   cudaMalloc((void **)&device_estimates, sizeof(estimate_t) * totalThreads);
 
+  //might have to check this
   estimate_t* estimates = (estimate_t*)calloc(totalThreads, sizeof(estimate_t));
 
   cudaMemcpy(device_X, x, N * sizeof(float),
@@ -117,6 +129,8 @@ estimate_t* sgdCuda(int N, float* x, float* y, float alpha, float opt){
 
   cudaMemcpy(device_estimates, estimates, totalThreads * sizeof(estimate_t),
              cudaMemcpyHostToDevice);
+
+  setup_kernel<<<blocks, threadsPerBlock>>>(states);
 
   estimate_t* ret = (estimate_t*)malloc(sizeof(estimate_t));
 
@@ -143,6 +157,8 @@ estimate_t* sgdCuda(int N, float* x, float* y, float alpha, float opt){
 
     num_steps += 1;
   }
+
+  printf("Num iterations: %d\n", num_steps);
 
   return ret;
 }
