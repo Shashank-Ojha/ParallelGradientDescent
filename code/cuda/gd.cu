@@ -40,39 +40,6 @@ getdB1Cuda(float x, float y, estimate_t* estimate){
   return -2.0 * (y-prediction)*x;
 }
 
-// estimate_t* bgdCuda(int N, float* x, float* y){
-//
-//   float* device_X;
-//   float* device_Y;
-//   float* device_result;
-//
-//   cudaMalloc((void **)&device_X, sizeof(float) * N);
-//   cudaMalloc((void **)&device_Y, sizeof(float) * N);
-//   cudaMalloc((void **)&device_result, sizeof(float));
-//
-//   cudaMemcpy(device_X, x, N * sizeof(float),
-//              cudaMemcpyHostToDevice);
-//
-//   cudaMemcpy(device_Y, y, N * sizeof(float),
-//              cudaMemcpyHostToDevice);
-//
-//   int blocks = 1;
-//   int threadsPerBlock = N; //ASSUMING N < 1024
-//   // int totalThreads = blocks * threadsPerBlock;
-//
-//   descend<<<blocks, threadsPerBlock>>>(N, device_X, device_Y, device_result);
-//
-//   float result;
-//   cudaMemcpy(&result, device_result, sizeof(float),
-//              cudaMemcpyDeviceToHost);
-//
-//   estimate_t* estimate = (estimate_t*)malloc(sizeof(estimate_t));
-//   estimate -> b1 = resultArray[1];
-//
-//   return estimate;
-// }
-
-//-----------------------------------------------------------------------------
 
 __global__ void
 setup_kernel(curandState *states) {
@@ -101,14 +68,13 @@ sgd_step(int N, float* device_X, float* device_Y, estimate_t* device_estimates, 
 
 // Running SGD with all threads each sampling one point and averaging result
 // after each SGD step. Checking convergence after each step
-estimate_t* sgdCuda(int N, float* x, float* y, float alpha, float opt){
+estimate_t* sgdCuda(int N, float* x, float* y, float alpha, float opt,
+                    int blocks, int threadsPerBlock){
 
   float* device_X;
   float* device_Y;
   estimate_t* device_estimates;
 
-  int blocks = 1;
-  int threadsPerBlock = 1;
   int totalThreads = blocks * threadsPerBlock;
 
   curandState *states;
