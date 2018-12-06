@@ -47,7 +47,6 @@ estimate_t* bgd(int N, float* x, float* y){
 estimate_t* sgd(int N, float* x, float* y){
   estimate_t* estimate = (estimate_t*)malloc(sizeof(estimate_t));
   estimate -> b1 = INIT_B1;
-  printf("num iter: %d\n", NUM_ITER_STOCH);
   for(int i = 0; i < NUM_ITER_STOCH; i++){
     //pick a point randomly
     int pi = rand() % N;
@@ -116,7 +115,6 @@ int main(int argc, char** argv)
 
     // estimate_t* estimate_bgdCuda = bgdCuda(N, x, y);
     // printf("Cuda Batch: y = %.2f (x)\n", estimate_bgdCuda -> b1);
-
 
     estimate_t* estimate_sgdCuda = sgdCuda(N, x, y, 0.01, 3.136258);
     printf("Cuda Stochastic: y = %.2f (x)\n", estimate_sgdCuda -> b1);
