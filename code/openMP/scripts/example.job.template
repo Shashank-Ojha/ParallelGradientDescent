@@ -8,7 +8,7 @@
 # Move to my $SCRATCH directory.
 cd $SCRATCH
 
-APP_NAME=gd # CHANGE THIS TO THE NAME OF YOUR PROGRAM
+APP_NAME=main # CHANGE THIS TO THE NAME OF YOUR PROGRAM
 
 # Set this to the important directory.
 execdir=PROGDIR # The directory that contains your wire routing program

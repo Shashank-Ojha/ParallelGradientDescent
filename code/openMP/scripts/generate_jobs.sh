@@ -6,8 +6,8 @@ threads=$2
 alpha=$3
 
 
-if [ ${#} -ne 2 ]; then
-  echo "Usage: $0 <input> <threads>"
+if [ ${#} -ne 3 ]; then
+  echo "Usage: $0 <input> <threads> <alpha>"
 else
   inputfile=`basename ${input}`
   strlen=${#inputfile}
