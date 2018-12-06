@@ -5,17 +5,50 @@
 
 #include "regression.h"
 
-
-estimate_t* bgdCudaCopy(int N, float* x, float* y);
 estimate_t* bgdCuda(int N, float* x, float* y);
-estimate_t* sgdCuda(int N, float* x, float* y, float alpha, float opt);
+estimate_t* sgdCuda(int N, float* x, float* y, float alpha, float opt,
+                    int blocks, int threadsPerBlock);
+
 void printCudaInfo();
 
 void usage(const char* progname) {
     printf("Usage: %s [options]\n", progname);
     printf("Program Options:\n");
     printf("  -f  Filename\n");
+    printf("  -a  Alpha\n");
+    printf("  -b  Number of blocks\n");
+    printf("  -t  Threads per block\n");
     printf("  -?  This message\n");
+}
+
+int checkInputArguments(char* filename, float alpha, int blocks,
+                        int threadsPerBlock)
+{
+    if(filename == NULL)
+    {
+        printf("No input file given\n");
+        return -1;
+    }
+
+    if(alpha == -1)
+    {
+        printf("Alpha was not specified\n");
+        return -1;
+    }
+
+    if(blocks == -1)
+    {
+        printf("Number of blocks was not specified\n");
+        return -1;
+    }
+
+    if(threadsPerBlock == -1)
+    {
+        printf("Threads per block was not specified\n");
+        return -1;
+    }
+
+    return 0;
 }
 
 float evaluate(estimate_t* estimate, float x){
@@ -43,7 +76,6 @@ estimate_t* bgd(int N, float* x, float* y){
   return estimate;
 }
 
-
 estimate_t* sgd(int N, float* x, float* y){
   estimate_t* estimate = (estimate_t*)malloc(sizeof(estimate_t));
   estimate -> b1 = INIT_B1;
@@ -62,14 +94,26 @@ estimate_t* sgd(int N, float* x, float* y){
 int main(int argc, char** argv)
 {
     char *filename = NULL;
+    float alpha = -1;
+    int blocks = -1;
+    int threadsPerBlock = -1;
+
 
     //Parse command line arguments
     int opt;
-    while ((opt = getopt(argc, argv, "?f:")) != EOF) {
-
+    while ((opt = getopt(argc, argv, "f:a:b:t:")) != EOF) {
         switch (opt) {
         case 'f':
             filename = optarg;
+            break;
+        case 'a':
+            alpha = (float)atof(optarg);
+            break;
+        case 'b':
+            blocks = atoi(optarg);
+            break;
+        case 't':
+            threadsPerBlock = atoi(optarg);
             break;
         case '?':
         default:
@@ -78,13 +122,18 @@ int main(int argc, char** argv)
         }
     }
 
-    if(filename == NULL){
-      printf("No input file given\n");
+    if(checkInputArguments(filename, alpha, blocks, threadsPerBlock) == -1){
+      usage(argv[0]);
       return 1;
     }
 
     // Read File
     int N;
+
+    float refSlope;
+    float refStdDev;
+    float refMSE;
+
     float* x;
     float* y;
 
@@ -95,6 +144,9 @@ int main(int argc, char** argv)
     }
 
     fscanf(input, "%d\n", &N);
+    fscanf(input, "%f\n", &refSlope);
+    fscanf(input, "%f\n", &refStdDev);
+    fscanf(input, "%f\n", &refMSE);
 
     x = (float*)malloc(sizeof(float) * N);
     y = (float*)malloc(sizeof(float) * N);
@@ -113,10 +165,9 @@ int main(int argc, char** argv)
     estimate_t* estimate_sgd = sgd(N, x, y);
     printf("Stochastic: y = %.2f (x)\n", estimate_sgd -> b1);
 
-    // estimate_t* estimate_bgdCuda = bgdCuda(N, x, y);
-    // printf("Cuda Batch: y = %.2f (x)\n", estimate_bgdCuda -> b1);
-
-    estimate_t* estimate_sgdCuda = sgdCuda(N, x, y, 0.01, 3.136258);
+    estimate_t* estimate_sgdCuda = sgdCuda(N, x, y, alpha, refSlope,
+                                           blocks, threadsPerBlock);
+                                           
     printf("Cuda Stochastic: y = %.2f (x)\n", estimate_sgdCuda -> b1);
 
     return 0;

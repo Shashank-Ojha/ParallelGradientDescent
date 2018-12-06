@@ -58,8 +58,7 @@ static void show_help(const char *program_path)
     printf("OPTIONS:\n");
     printf("\t-f <input_filename> (required)\n");
     printf("\t-n <num_of_threads> (required)\n");
-    printf("\t-p <SA_prob>\n");
-    printf("\t-i <SA_iters>\n");
+    printf("\t-a <alpha>\n");
 }
 
 
@@ -75,6 +74,8 @@ int main(int argc, const char *argv[])
     const char *input_filename = get_option_string("-f", NULL);
 
     int num_of_threads = get_option_int("-n", 1);
+    float alpha = get_option_float("-a", 0.1);
+
     int error = 0;
 
     if (input_filename == NULL) {
