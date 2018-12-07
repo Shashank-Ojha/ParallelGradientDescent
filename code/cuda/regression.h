@@ -1,7 +1,9 @@
 typedef struct {
+  float b0;
   float b1;
 } estimate_t;
 
+const float INIT_B0 = 5.0;
 const float INIT_B1 = 0.0;
 
 typedef struct {
@@ -15,4 +17,4 @@ const int NUM_ITER_BATCH =  100000;
 const float STEP_SIZE_STOCH = 0.0001;
 const int NUM_ITER_STOCH =  100000;
 const int BATCH_SIZE_STOCH = 5;
-const int ITER_LIMIT = 10000000;
+const int ITER_LIMIT = 100000;
