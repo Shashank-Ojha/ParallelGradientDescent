@@ -8,6 +8,8 @@
 estimate_t* bgdCuda(int N, float* x, float* y);
 estimate_t* sgdCuda(int N, float* x, float* y, float alpha, float opt,
                     int blocks, int threadsPerBlock);
+estimate_t* sgdCudaByBlock(int N, float* x, float* y, float alpha, float opt,
+                    int k, int blocks, int threadsPerBlock);
 
 void printCudaInfo();
 
@@ -18,11 +20,12 @@ void usage(const char* progname) {
     printf("  -a  Alpha\n");
     printf("  -b  Number of blocks\n");
     printf("  -t  Threads per block\n");
+    printf("  -s  Samples per thread\n");
     printf("  -?  This message\n");
 }
 
 int checkInputArguments(char* filename, float alpha, int blocks,
-                        int threadsPerBlock)
+                        int threadsPerBlock, int samplesPerThread)
 {
     if(filename == NULL)
     {
@@ -45,6 +48,12 @@ int checkInputArguments(char* filename, float alpha, int blocks,
     if(threadsPerBlock == -1)
     {
         printf("Threads per block was not specified\n");
+        return -1;
+    }
+
+    if(samplesPerThread == -1)
+    {
+        printf("Samples per thread was not specified\n");
         return -1;
     }
 
@@ -97,11 +106,12 @@ int main(int argc, char** argv)
     float alpha = -1;
     int blocks = -1;
     int threadsPerBlock = -1;
+    int samplesPerThread = -1;
 
 
     //Parse command line arguments
     int opt;
-    while ((opt = getopt(argc, argv, "f:a:b:t:")) != EOF) {
+    while ((opt = getopt(argc, argv, "f:a:b:t:s:")) != EOF) {
         switch (opt) {
         case 'f':
             filename = optarg;
@@ -115,6 +125,9 @@ int main(int argc, char** argv)
         case 't':
             threadsPerBlock = atoi(optarg);
             break;
+        case 's':
+            samplesPerThread = atoi(optarg);
+            break;
         case '?':
         default:
             usage(argv[0]);
@@ -122,7 +135,7 @@ int main(int argc, char** argv)
         }
     }
 
-    if(checkInputArguments(filename, alpha, blocks, threadsPerBlock) == -1){
+    if(checkInputArguments(filename, alpha, blocks, threadsPerBlock, samplesPerThread) == -1){
       usage(argv[0]);
       return 1;
     }
@@ -167,8 +180,13 @@ int main(int argc, char** argv)
 
     estimate_t* estimate_sgdCuda = sgdCuda(N, x, y, alpha, refSlope,
                                            blocks, threadsPerBlock);
-                                           
+
     printf("Cuda Stochastic: y = %.2f (x)\n", estimate_sgdCuda -> b1);
+
+    estimate_t* estimate_sgdCudaByBlock = sgdCudaByBlock(N, x, y, alpha,
+                        refSlope, samplesPerThread, blocks, threadsPerBlock);
+
+    printf("Cuda Stochastic by block: y = %.2f (x)\n", estimate_sgdCudaByBlock -> b1);
 
     return 0;
 }
