@@ -11,6 +11,9 @@ estimate_t* sgdCuda(int N, float* x, float* y, float alpha, float opt,
 estimate_t* sgdCudaByBlock(int N, float* x, float* y, float alpha, float opt,
                     int k, int blocks, int threadsPerBlock);
 
+estimate_t* sgdCudaWithPartition(int N, float* x, float* y, float alpha, float opt,
+                                 int blocks, int threadsPerBlock);
+
 void printCudaInfo();
 
 void usage(const char* progname) {
@@ -194,10 +197,15 @@ int main(int argc, char** argv)
 
     printf("Cuda Stochastic: y = %.2f (x) + %.2f\n", estimate_sgdCuda -> b1, estimate_sgdCuda -> b0);
 
-    estimate_t* estimate_sgdCudaByBlock = sgdCudaByBlock(N, x, y, alpha,
-                        refMSE, samplesPerThread, blocks, threadsPerBlock);
+    // estimate_t* estimate_sgdCudaByBlock = sgdCudaByBlock(N, x, y, alpha,
+    //                     refMSE, samplesPerThread, blocks, threadsPerBlock);
+    //
+    // printf("Cuda Stochastic by block: y = %.2f (x) + %.2f\n", estimate_sgdCudaByBlock -> b1, estimate_sgdCudaByBlock -> b0);
 
-    printf("Cuda Stochastic by block: y = %.2f (x) + %.2f\n", estimate_sgdCudaByBlock -> b1, estimate_sgdCudaByBlock -> b0);
+    estimate_t* estimate_sgdCudaWithPartition = sgdCudaWithPartition(N, x, y, alpha,
+                        refMSE, blocks, threadsPerBlock);
+
+    printf("Cuda Stochastic with Partition: y = %.2f (x) + %.2f\n", estimate_sgdCudaWithPartition -> b1, estimate_sgdCudaWithPartition -> b0);
 
     return 0;
 }
