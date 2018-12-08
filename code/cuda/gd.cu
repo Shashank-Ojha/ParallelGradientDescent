@@ -287,3 +287,153 @@ estimate_t* sgdCudaByBlock(int N, float* x, float* y, float alpha, float opt,
 
   return ret;
 }
+
+//-----------------------------------------------------------------------------
+
+__device__ __inline__ void
+shuffle(float* x, float* y, int size, curandState* randState){
+  for(int i = 0; i < size; i++){
+    int j = curand(randState) % size;
+
+    float tempx = x[i];
+    x[i] = x[j];
+    x[j] = tempx;
+
+    float tempy = y[i];
+    y[i] = y[j];
+    y[j] = tempy;
+  }
+}
+
+// Assumes the number of indexes is equal to N
+__global__ void
+sgdStepWithPartition(int N, float* device_X, float* device_Y,
+               estimate_t* device_estimates, curandState* states, int* times) {
+
+  int index = blockIdx.x * blockDim.x + threadIdx.x;
+
+  curandState localState = states[index];
+
+  int bucketSize = N / blockDim.x;
+  int remainder = N % blockDim.x;
+  int lo;
+  int hi;
+
+  //thread 0 -> lo = 0 and hi = 4
+  if(threadIdx.x < remainder)
+  {
+    lo = threadIdx.x * bucketSize + threadIdx.x;
+    hi = lo + bucketSize + 1;
+  } else {
+    lo = threadIdx.x * bucketSize + remainder;
+    hi = lo + bucketSize;
+  }
+
+  int subsetSize = hi - lo;
+  //Thread gets its subset of data based on threadIdx.x
+  float* subsetX = (float*)malloc(sizeof(float) * subsetSize);
+  float* subsetY = (float*)malloc(sizeof(float) * subsetSize);
+
+  //copy data
+  for(int i = lo; i < hi; i++)
+  {
+    subsetX[i-lo] = device_X[i];
+    subsetY[i-lo] = device_Y[i];
+  }
+
+  shuffle(subsetX, subsetY, subsetSize, &localState);
+
+  clock_t start = clock();
+
+  for(int i = 0; i < subsetSize; i++)
+  {
+      float db0 = getdB0Cuda(subsetX[i], subsetY[i], device_estimates+index, N);
+      float db1 = getdB1Cuda(subsetX[i], subsetY[i], device_estimates+index, N);
+
+      device_estimates[index].b0 -= (STEP_SIZE_STOCH * db0);
+      device_estimates[index].b1 -= (STEP_SIZE_STOCH * db1);
+  }
+
+  states[index] = localState;
+
+  clock_t stop = clock();
+  times[index] = (int)(stop - start);
+}
+
+estimate_t* sgdCudaWithPartition(int N, float* x, float* y, float alpha, float opt,
+                     int blocks, int threadsPerBlock){
+
+  int* device_times;
+  curandState* states;
+  float* device_X;
+  float* device_Y;
+  estimate_t* device_estimates;
+
+  int totalThreads = blocks * threadsPerBlock;
+
+  cudaMalloc((void **)&device_times, totalThreads * sizeof(int));
+  cudaMalloc((void **)&states, totalThreads * sizeof(curandState));
+  cudaMalloc((void **)&device_X, sizeof(float) * N);
+  cudaMalloc((void **)&device_Y, sizeof(float) * N);
+  cudaMalloc((void **)&device_estimates, sizeof(estimate_t) * totalThreads);
+
+  estimate_t* estimates = (estimate_t*)calloc(totalThreads, sizeof(estimate_t));
+  for (int i = 0; i < totalThreads; i++) {
+      estimates[i].b0 = INIT_B0;
+      estimates[i].b1 = INIT_B1;
+  }
+
+  //TODO: shuffle x and y
+
+  cudaMemcpy(device_X, x, N * sizeof(float), cudaMemcpyHostToDevice);
+  cudaMemcpy(device_Y, y, N * sizeof(float), cudaMemcpyHostToDevice);
+  cudaMemcpy(device_estimates, estimates, totalThreads * sizeof(estimate_t),
+             cudaMemcpyHostToDevice);
+
+  setup_kernel<<<blocks, threadsPerBlock>>>(states);
+
+  estimate_t* ret = (estimate_t*)malloc(sizeof(estimate_t));
+
+  float upper = opt + (alpha/2.0)*opt;
+  float lower = opt - (alpha/2.0)*opt;
+
+  int times[totalThreads];
+  int num_steps = 0;
+  int total_time = 0;
+
+  while(true)
+  {
+    sgdStepWithPartition<<<blocks, threadsPerBlock>>>(N, device_X, device_Y, device_estimates, states, device_times);
+    cudaThreadSynchronize();
+
+    cudaMemcpy(times, device_times, totalThreads * sizeof(int),
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(estimates, device_estimates, totalThreads * sizeof(estimate_t),
+               cudaMemcpyDeviceToHost);
+
+    int max_time = 0;
+    for (int i = 0; i < totalThreads; i++) {
+        if (times[i] > max_time) max_time = times[i];
+    }
+
+    total_time += max_time;
+
+    ret -> b0 = 0.0;
+    ret -> b1 = 0.0;
+    for(int j = 0; j < totalThreads; j++) {
+      ret -> b0 += estimates[j].b0 / static_cast<float>(totalThreads);
+      ret -> b1 += estimates[j].b1 / static_cast<float>(totalThreads);
+    }
+
+    if(num_steps > ITER_LIMIT || withinAlphaMSE(lower, upper, ret, x, y, N)) {
+        break;
+    }
+
+    num_steps += 1;
+  }
+
+  printf("Num iterations: %d\n", num_steps);
+  printf("Num of clock cycles: %d\n", total_time);
+
+  return ret;
+}
