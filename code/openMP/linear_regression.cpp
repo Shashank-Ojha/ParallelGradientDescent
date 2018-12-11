@@ -38,10 +38,10 @@ float calculate_error(int N, float* x, float* y, estimate_t* estimate) {
 	float res = 0;
 	for (int i = 0; i < N; i++) {
         float y_hat = evaluate(estimate, x[i]);
-		res += (y[i] - y_hat) * (y[i] - y_hat);
+		res += ((y[i] - y_hat) * (y[i] - y_hat)) / static_cast<float>(N);
 	}
 
-	return res / static_cast<float>(N);
+	return res;
 }
 
 estimate_t* bgd(int N, float* x, float* y, int num_threads)
@@ -49,21 +49,21 @@ estimate_t* bgd(int N, float* x, float* y, int num_threads)
 	  omp_set_num_threads(num_threads);
     num_t* partial_db0 = (num_t*)malloc(sizeof(num_t) * num_threads);
 		num_t* partial_db1 = (num_t*)malloc(sizeof(num_t) * num_threads);
-        num_t* partial_db2 = (num_t*)malloc(sizeof(num_t) * num_threads);
-            num_t* partial_db3 = (num_t*)malloc(sizeof(num_t) * num_threads);
+    num_t* partial_db2 = (num_t*)malloc(sizeof(num_t) * num_threads);
+    num_t* partial_db3 = (num_t*)malloc(sizeof(num_t) * num_threads);
 	  estimate_t* estimate = (estimate_t*)malloc(sizeof(estimate_t));
     estimate -> b0 = INIT_B0;
 	  estimate -> b1 = INIT_B1;
-      estimate -> b2 = INIT_B2;
-  	  estimate -> b3 = INIT_B3;
+    estimate -> b2 = INIT_B2;
+  	estimate -> b3 = INIT_B3;
 
 	  for(int i = 0; i < NUM_ITER_BATCH; i++)
 		{
 				for(int k = 0; k < num_threads; k++) {
           partial_db0[k].num = 0.0;
 					partial_db1[k].num = 0.0;
-                    partial_db2[k].num = 0.0;
-          					partial_db3[k].num = 0.0;
+          partial_db2[k].num = 0.0;
+          partial_db3[k].num = 0.0;
 				}
 
 				int j, tid;
@@ -76,8 +76,8 @@ estimate_t* bgd(int N, float* x, float* y, int num_threads)
 					  // 		right now, only a float so there is false sharing and so it is slower
             partial_db0[tid].num += getdB0(x[j], y[j], estimate, N);
 					  partial_db1[tid].num += getdB1(x[j], y[j], estimate, N);
-                      partial_db2[tid].num += getdB2(x[j], y[j], estimate, N);
-          					  partial_db3[tid].num += getdB3(x[j], y[j], estimate, N);
+            partial_db2[tid].num += getdB2(x[j], y[j], estimate, N);
+          	partial_db3[tid].num += getdB3(x[j], y[j], estimate, N);
 			  	}
 
         float db0 = 0.0;
@@ -88,14 +88,14 @@ estimate_t* bgd(int N, float* x, float* y, int num_threads)
 				{
           db0 += partial_db0[k].num;
 					db1 += partial_db1[k].num;
-                    db2 += partial_db2[k].num;
-          					db3 += partial_db3[k].num;
+          db2 += partial_db2[k].num;
+          db3 += partial_db3[k].num;
 				}
 
         estimate -> b0 -= STEP_SIZE_BATCH * db0;
 		    estimate -> b1 -= STEP_SIZE_BATCH * db1;
-            estimate -> b2 -= STEP_SIZE_BATCH * db2;
-    		    estimate -> b3 -= STEP_SIZE_BATCH * db3;
+        estimate -> b2 -= STEP_SIZE_BATCH * db2;
+    		estimate -> b3 -= STEP_SIZE_BATCH * db3;
   	}
   	return estimate;
 }
@@ -117,8 +117,8 @@ estimate_t* sgd(int N, float* x, float* y)
 	  estimate_t* estimate = (estimate_t*)malloc(sizeof(estimate_t));
 	  estimate -> b0 = INIT_B0;
     estimate -> b1 = INIT_B1;
-    estimate -> b0 = INIT_B2;
-  estimate -> b1 = INIT_B3;
+    estimate -> b2 = INIT_B2;
+    estimate -> b3 = INIT_B3;
 
 	  for(int i = 0; i < NUM_ITER_STOCH; i++)
 		{

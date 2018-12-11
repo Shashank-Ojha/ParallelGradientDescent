@@ -8,7 +8,7 @@ typedef struct {
 
 const float INIT_B3 = 0.0;
 const float INIT_B2 = 0.0;
-const float INIT_B1 = 0.0;
+const float INIT_B1 = 1.0;
 const float INIT_B0 = 0.0;
 
 float evaluate(estimate_t* estimate, float x);
