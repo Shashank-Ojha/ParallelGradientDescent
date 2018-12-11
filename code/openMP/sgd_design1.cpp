@@ -11,6 +11,13 @@
 #include "linear_regression.h"
 #include "sgd_designs.h"
 
+
+/*
+
+
+
+ */
+
 estimate_t* sgd_design1(int N, float* x, float* y, int num_threads){
 	num_t* partial_db1 = (num_t*)malloc(sizeof(num_t) * num_threads);
   estimate_t *estimate = (estimate_t*)malloc(sizeof(estimate_t));
