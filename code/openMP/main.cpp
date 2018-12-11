@@ -61,6 +61,12 @@ static void show_help(const char *program_path)
     printf("\t-a <alpha>\n");
 }
 
+static void print_divider()
+{
+  printf("\n");
+  printf("-------------------------------------\n");
+  printf("\n");
+}
 
 int main(int argc, const char *argv[])
 {
@@ -89,6 +95,8 @@ int main(int argc, const char *argv[])
 
     printf("Number of threads: %d\n", num_of_threads);
     printf("Input file: %s\n", input_filename);
+
+    print_divider();
 
     FILE *input = fopen(input_filename, "r");
 
@@ -120,8 +128,8 @@ int main(int argc, const char *argv[])
 
     fclose(input);
 
-	  double batch_time, stochastic_time;
-	  estimate_t estimate_bgd, estimate_sgd;
+	  double batch_time, stochastic_sequential_time, stochastic_parallel_time;
+	  estimate_t estimate_bgd, estimate_sgd_sequential, estimate_sgd_parallel;
 
     #ifdef RUN_MIC /* Use RUN_MIC to distinguish between the target of compilation */
 
@@ -142,29 +150,43 @@ int main(int argc, const char *argv[])
 				 auto batch_end = Clock::now();
 		  	 batch_time = duration_cast<dsec>(batch_end - batch_start).count();
 
-		  	 auto stochastic_start = Clock::now();
+         estimate_sgd_sequential = *sgd_approx(N, x, y, alpha, refMSE, &stochastic_sequential_time);
 
-      	 estimate_sgd = *sgd_design5(N, x, y, alpha, refSlope, num_of_threads);
-
-		     auto stochastic_end = Clock::now();
-		     stochastic_time = duration_cast<dsec>(stochastic_end - stochastic_start).count();
+      	 estimate_sgd_parallel = *sgd_design5(N, x, y, alpha, refMSE, num_of_threads, &stochastic_parallel_time);
       }
 
 
-	  float bgd_MSE = calculate_error(N, x, y, estimate_bgd);
-	  float sgd_MSE = calculate_error(N, x, y, estimate_sgd);
-	  float bgd_precent_error = (bgd_MSE - refMSE) / refMSE;
-	  float sgd_precent_error = (sgd_MSE - refMSE) / refMSE;
+	  float bgd_MSE = calculate_error(N, x, y, &estimate_bgd);
+    float sgd_MSE_sequential = calculate_error(N, x, y, &estimate_sgd_sequential);
+	  float sgd_MSE_parallel = calculate_error(N, x, y, &estimate_sgd_parallel);
+	  float bgd_std_error = abs(bgd_MSE - refMSE) / sqrt(refMSE);
+    float sgd_std_error_sequential = abs(sgd_MSE_sequential - refMSE) / sqrt(refMSE);
+	  float sgd_std_error_parallel = abs(sgd_MSE_parallel - refMSE) / sqrt(refMSE);
 
-    printf("Reference: y = %.2f (x)\n", estimate_bgd.b1);
+    printf("Reference: y = %.2f (x) + %.2f\n", refSlope, 5.0); //TODO: Change to actually read in the intercept
 
-	  printf("Batch: y = %.2f (x)\n", estimate_bgd.b1);
-	  printf("Batch MSE: %0.2f\tPrecent Error: %0.2f\n", bgd_MSE, bgd_precent_error);
-	  printf("Computation Time BGD: %lf.\n\n", batch_time);
+    print_divider();
 
-	  printf("Stochastic: y = %.2f (x)\n", estimate_sgd.b1);
-	  printf("Stochastic MSE: %0.2f\tPrecent Error: %0.2f\n", sgd_MSE, sgd_precent_error);
-	  printf("Computation Time SGD: %lf.\n", stochastic_time);
+    printf("Batch:\n");
+	  printf("y = %.2f (x) + %.2f\n", estimate_bgd.b1, estimate_bgd.b0);
+	  printf("MSE: %0.2f\tStandard Error: %0.2f\n", bgd_MSE, bgd_std_error);
+	  printf("Computation Time: %lf.\n", batch_time);
+
+    print_divider();
+
+    printf("Stochastic Sequential:\n");
+	  printf("y = %.2f (x) + %.2f\n", estimate_sgd_sequential.b1, estimate_sgd_sequential.b0);
+	  printf("MSE: %0.2f\tStandard Error: %0.2f\n", sgd_MSE_sequential, sgd_std_error_sequential);
+	  printf("Computation Time: %lf.\n", stochastic_sequential_time);
+
+    print_divider();
+
+    printf("Stochastic Parallel:\n");
+	  printf("y = %.2f (x) + %.2f\n", estimate_sgd_parallel.b1, estimate_sgd_parallel.b0);
+	  printf("MSE: %0.2f\tStandard Error: %0.2f\n", sgd_MSE_parallel, sgd_std_error_parallel);
+	  printf("Computation Time: %lf.\n", stochastic_parallel_time);
+
+    print_divider();
 
 	  free(x);
 	  free(y);
