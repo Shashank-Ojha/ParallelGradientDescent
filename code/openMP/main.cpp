@@ -182,7 +182,9 @@ int main(int argc, const char *argv[])
     print_divider();
 
     printf("Stochastic Parallel:\n");
-	  printf("y = %.2f (x) + %.2f\n", estimate_sgd_parallel.b1, estimate_sgd_parallel.b0);
+	  printf("y = (%.3f) x^3 + (%.3f) x^2 + (%.3f) x + ()%.3f)\n",
+                estimate_sgd_parallel.b3, estimate_sgd_parallel.b2,
+                estimate_sgd_parallel.b1, estimate_sgd_parallel.b0);
 	  printf("MSE: %0.2f\tStandard Error: %0.2f\n", sgd_MSE_parallel, sgd_std_error_parallel);
 	  printf("Computation Time: %lf.\n", stochastic_parallel_time);
 
