@@ -159,31 +159,34 @@ int main(int argc, const char *argv[])
 	  float bgd_MSE = calculate_error(N, x, y, &estimate_bgd);
     float sgd_MSE_sequential = calculate_error(N, x, y, &estimate_sgd_sequential);
 	  float sgd_MSE_parallel = calculate_error(N, x, y, &estimate_sgd_parallel);
-	  float bgd_std_error = abs(bgd_MSE - refMSE) / sqrt(refMSE);
-    float sgd_std_error_sequential = abs(sgd_MSE_sequential - refMSE) / sqrt(refMSE);
-	  float sgd_std_error_parallel = abs(sgd_MSE_parallel - refMSE) / sqrt(refMSE);
 
     printf("Reference: y = %.2f (x) + %.2f\n", refSlope, 5.0); //TODO: Change to actually read in the intercept
 
     print_divider();
 
     printf("Batch:\n");
-	  printf("y = %.2f (x) + %.2f\n", estimate_bgd.b1, estimate_bgd.b0);
-	  printf("MSE: %0.2f\tStandard Error: %0.2f\n", bgd_MSE, bgd_std_error);
+    printf("y = (%.3f) x^3 + (%.3f) x^2 + (%.3f) x + (%.3f)\n",
+                estimate_bgd.b3, estimate_bgd.b2,
+                estimate_bgd.b1, estimate_bgd.b0);
+	  printf("MSE: %0.2f\n", bgd_MSE);
 	  printf("Computation Time: %lf.\n", batch_time);
 
     print_divider();
 
     printf("Stochastic Sequential:\n");
-	  printf("y = %.2f (x) + %.2f\n", estimate_sgd_sequential.b1, estimate_sgd_sequential.b0);
-	  printf("MSE: %0.2f\tStandard Error: %0.2f\n", sgd_MSE_sequential, sgd_std_error_sequential);
+    printf("y = (%.3f) x^3 + (%.3f) x^2 + (%.3f) x + (%.3f)\n",
+                estimate_sgd_sequential.b3, estimate_sgd_sequential.b2,
+                estimate_sgd_sequential.b1, estimate_sgd_sequential.b0);
+    printf("MSE: %0.2f\n", sgd_MSE_sequential);
 	  printf("Computation Time: %lf.\n", stochastic_sequential_time);
 
     print_divider();
 
     printf("Stochastic Parallel:\n");
-	  printf("y = %.2f (x) + %.2f\n", estimate_sgd_parallel.b1, estimate_sgd_parallel.b0);
-	  printf("MSE: %0.2f\tStandard Error: %0.2f\n", sgd_MSE_parallel, sgd_std_error_parallel);
+	  printf("y = (%.3f) x^3 + (%.3f) x^2 + (%.3f) x + (%.3f)\n",
+                estimate_sgd_parallel.b3, estimate_sgd_parallel.b2,
+                estimate_sgd_parallel.b1, estimate_sgd_parallel.b0);
+	  printf("MSE: %0.2f\n", sgd_MSE_parallel);
 	  printf("Computation Time: %lf.\n", stochastic_parallel_time);
 
     print_divider();
