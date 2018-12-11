@@ -1,10 +1,14 @@
 typedef struct {
   float b0;
   float b1;
+  float b2;
+  float b3;
 } estimate_t;
 
-const float INIT_B0 = 5.0;
+const float INIT_B0 = 0.0;
 const float INIT_B1 = 0.0;
+const float INIT_B2 = 0.0;
+const float INIT_B3 = 0.0;
 
 typedef struct {
   float num;
