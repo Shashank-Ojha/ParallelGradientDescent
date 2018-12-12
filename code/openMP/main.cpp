@@ -165,7 +165,7 @@ int main(int argc, const char *argv[])
     print_divider();
 
     printf("Batch:\n");
-    printf("y = (%.3f) x^3 + (%.3f) x^2 + (%.3f) x + (%.3f)\n",
+    printf("y = (%.5f) x^3 + (%.5f) x^2 + (%.5f) x + (%.5f)\n",
                 estimate_bgd.b3, estimate_bgd.b2,
                 estimate_bgd.b1, estimate_bgd.b0);
 	  printf("MSE: %0.2f\n", bgd_MSE);
@@ -174,7 +174,7 @@ int main(int argc, const char *argv[])
     print_divider();
 
     printf("Stochastic Sequential:\n");
-    printf("y = (%.3f) x^3 + (%.3f) x^2 + (%.3f) x + (%.3f)\n",
+    printf("y = (%.5f) x^3 + (%.5f) x^2 + (%.5f) x + (%.5f)\n",
                 estimate_sgd_sequential.b3, estimate_sgd_sequential.b2,
                 estimate_sgd_sequential.b1, estimate_sgd_sequential.b0);
     printf("MSE: %0.2f\n", sgd_MSE_sequential);
@@ -183,7 +183,7 @@ int main(int argc, const char *argv[])
     print_divider();
 
     printf("Stochastic Parallel:\n");
-	  printf("y = (%.3f) x^3 + (%.3f) x^2 + (%.3f) x + (%.3f)\n",
+	  printf("y = (%.5f) x^3 + (%.5f) x^2 + (%.5f) x + (%.5f)\n",
                 estimate_sgd_parallel.b3, estimate_sgd_parallel.b2,
                 estimate_sgd_parallel.b1, estimate_sgd_parallel.b0);
 	  printf("MSE: %0.2f\n", sgd_MSE_parallel);
