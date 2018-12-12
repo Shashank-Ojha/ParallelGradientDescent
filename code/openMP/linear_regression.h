@@ -26,4 +26,6 @@ void sgd_step(int N, float* x, float* y, estimate_t* estimate);
 
 estimate_t* sgd(int N, float* x, float* y);
 
+bool in_print_range(int i);
+
 estimate_t* sgd_approx(int N, float* x, float* y, float alpha, float refMSE, double* time);
