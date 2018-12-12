@@ -145,7 +145,7 @@ int main(int argc, const char *argv[])
 
 		     auto batch_start = Clock::now();
 
-         estimate_bgd = *bgd(N, x, y, num_of_threads);
+         // estimate_bgd = *bgd(N, x, y, num_of_threads);
 
 				 auto batch_end = Clock::now();
 		  	 batch_time = duration_cast<dsec>(batch_end - batch_start).count();
@@ -156,20 +156,20 @@ int main(int argc, const char *argv[])
       }
 
 
-	  float bgd_MSE = calculate_error(N, x, y, &estimate_bgd);
+	  // float bgd_MSE = calculate_error(N, x, y, &estimate_bgd);
     float sgd_MSE_sequential = calculate_error(N, x, y, &estimate_sgd_sequential);
 	  float sgd_MSE_parallel = calculate_error(N, x, y, &estimate_sgd_parallel);
 
     printf("Reference: y = %.2f (x) + %.2f\n", refSlope, 5.0); //TODO: Change to actually read in the intercept
 
-    print_divider();
+    // print_divider();
 
-    printf("Batch:\n");
-    printf("y = (%.5f) x^3 + (%.5f) x^2 + (%.5f) x + (%.5f)\n",
-                estimate_bgd.b3, estimate_bgd.b2,
-                estimate_bgd.b1, estimate_bgd.b0);
-	  printf("MSE: %0.2f\n", bgd_MSE);
-	  printf("Computation Time: %lf.\n", batch_time);
+    // printf("Batch:\n");
+    // printf("y = (%.5f) x^3 + (%.5f) x^2 + (%.5f) x + (%.5f)\n",
+    //             estimate_bgd.b3, estimate_bgd.b2,
+    //             estimate_bgd.b1, estimate_bgd.b0);
+	  // printf("MSE: %0.2f\n", bgd_MSE);
+	  // printf("Computation Time: %lf.\n", batch_time);
 
     print_divider();
 
