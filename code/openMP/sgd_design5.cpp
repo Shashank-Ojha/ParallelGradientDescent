@@ -43,46 +43,49 @@ estimate_t* sgd_design5(int N, float* x, float* y, float alpha, float refMSE,
   #pragma omp parallel default(shared) private(tid)
 	{
 		tid = omp_get_thread_num();
-		int num_steps = 0;
-		for (int i = 0; i < NUM_ITER_STOCH; i++) {
+		for (int num_steps = 0; num_steps < NUM_ITER_STOCH; num_steps++) {
       auto start = Clock::now();
-			estimates[tid] = *sgd_step(N, x, y, estimates+tid);
+			sgd_step(N, x, y, estimates+tid);
       auto end = Clock::now();
       times[tid] += duration_cast<dsec>(end - start).count();
 
-			#pragma omp barrier
-
-			//average the solutions
-			if(tid == 0)
-			{
-        double max_time = 0.0;
-        ret -> b0 = 0.0;
-				ret -> b1 = 0.0;
-                ret -> b2 = 0.0;
-        				ret -> b3 = 0.0;
-				for(int j = 0; j < num_threads; j++) {
-          ret -> b0 += estimates[j].b0 / static_cast<float>(num_threads);
-					ret -> b1 += estimates[j].b1 / static_cast<float>(num_threads);
-                    ret -> b2 += estimates[j].b2 / static_cast<float>(num_threads);
-          					ret -> b3 += estimates[j].b3 / static_cast<float>(num_threads);
-          if(times[j] > max_time){
-            max_time = times[j];
-          }
-				}
-
-        *time += max_time;
-			}
-
-
       #pragma omp barrier
 
-      if (i == 25 || i == 50 || i == 100 || i == 250 || i == 500) {
-          float MSE = calculate_error(N, x, y, ret);
-          float std_error = abs(MSE - refMSE) / sqrt(refMSE);
-          printf("Steps: %d\tMSE: %.3f\n", i, MSE);
+      if(tid == 0 && (num_steps == 25 || num_steps == 100 || num_steps == 250 ||
+          num_steps == 500 || num_steps == 1000 || num_steps == 1500 ||
+          num_steps == 2000 || num_steps == 2500 || num_steps == 5000)) {
+            ret -> b0 = 0.0;
+            ret -> b1 = 0.0;
+            ret -> b2 = 0.0;
+            ret -> b3 = 0.0;
+            for(int j = 0; j < num_threads; j++) {
+              ret -> b0 += estimates[j].b0 / static_cast<float>(num_threads);
+              ret -> b1 += estimates[j].b1 / static_cast<float>(num_threads);
+              ret -> b2 += estimates[j].b2 / static_cast<float>(num_threads);
+              ret -> b3 += estimates[j].b3 / static_cast<float>(num_threads);
+            }
+        float MSE = calculate_error(N, x, y, ret);
+        printf("num_steps parallel: %d \t MSE: %.3f\n", num_steps, MSE);
       }
     }
   }
+
+  double max_time;
+  ret -> b0 = 0.0;
+  ret -> b1 = 0.0;
+  ret -> b2 = 0.0;
+  ret -> b3 = 0.0;
+  for(int j = 0; j < num_threads; j++) {
+    ret -> b0 += estimates[j].b0 / static_cast<float>(num_threads);
+    ret -> b1 += estimates[j].b1 / static_cast<float>(num_threads);
+    ret -> b2 += estimates[j].b2 / static_cast<float>(num_threads);
+    ret -> b3 += estimates[j].b3 / static_cast<float>(num_threads);
+    if(times[j] > max_time){
+      max_time = times[j];
+    }
+  }
+
+  *time = max_time;
 
   return ret;
 }

@@ -35,9 +35,9 @@ float getdB0(float x, float y, estimate_t* estimate, int N){
 }
 
 float calculate_error(int N, float* x, float* y, estimate_t* estimate) {
-	float res = 0;
+	float res = 0.0;
 	for (int i = 0; i < N; i++) {
-        float y_hat = evaluate(estimate, x[i]);
+    float y_hat = evaluate(estimate, x[i]);
 		res += ((y[i] - y_hat) * (y[i] - y_hat)) / static_cast<float>(N);
 	}
 
@@ -100,7 +100,7 @@ estimate_t* bgd(int N, float* x, float* y, int num_threads)
   	return estimate;
 }
 
-estimate_t* sgd_step(int N, float* x, float* y, estimate_t* estimate)
+void sgd_step(int N, float* x, float* y, estimate_t* estimate)
 {
     int j = rand() % N;
 
@@ -108,8 +108,6 @@ estimate_t* sgd_step(int N, float* x, float* y, estimate_t* estimate)
     estimate -> b1 -= STEP_SIZE_STOCH * getdB1(x[j], y[j], estimate, N);
     estimate -> b2 -= STEP_SIZE_STOCH * getdB2(x[j], y[j], estimate, N);
     estimate -> b3 -= STEP_SIZE_STOCH * getdB3(x[j], y[j], estimate, N);
-
-  	return estimate;
 }
 
 estimate_t* sgd(int N, float* x, float* y)
@@ -122,7 +120,7 @@ estimate_t* sgd(int N, float* x, float* y)
 
 	  for(int i = 0; i < NUM_ITER_STOCH; i++)
 		{
-        estimate = sgd_step(N, x, y, estimate);
+        sgd_step(N, x, y, estimate);
   	}
   	return estimate;
 }
@@ -143,24 +141,22 @@ estimate_t* sgd_approx(int N, float* x, float* y, float alpha, float refMSE, dou
     estimate -> b2 = INIT_B2;
     estimate -> b3 = INIT_B3;
 
-    int num_steps = 0;
-    while(true)
+    for(int num_steps = 0; num_steps < NUM_ITER_STOCH; num_steps++)
     {
       auto start = Clock::now();
-      *estimate = *sgd_step(N, x, y, estimate);
+      sgd_step(N, x, y, estimate);
       auto end = Clock::now();
+
       *time += duration_cast<dsec>(end - start).count();
 
+      if(num_steps == 25 || num_steps == 100 || num_steps == 250 ||
+          num_steps == 500 || num_steps == 1000 || num_steps == 1500 ||
+          num_steps == 2000 || num_steps == 2500 || num_steps == 5000) {
+        float MSE = calculate_error(N, x, y, estimate);
+        printf("num_steps sequential: %d \t MSE: %.3f\n", num_steps, MSE);
+      }
 
-      float MSE = calculate_error(N, x, y, estimate);
-      float std_error = abs(MSE - refMSE) / sqrt(refMSE);
-      if(num_steps > ITER_LIMIT || (std_error < alpha))
-        break;
-
-      num_steps++;
     }
-
-    printf("num_steps for sequential: %d\n", num_steps);
 
   	return estimate;
 }
