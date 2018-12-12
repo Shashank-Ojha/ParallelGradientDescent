@@ -24,4 +24,4 @@ cp $execdir/$exe $exe
 cp $inputdir/$input $inputname
 
 # Run my executable
-perf stat -e cache-misses ./$exe $args
+perf stat -e cache-references -e cache-misses ./$exe $args

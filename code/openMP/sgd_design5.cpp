@@ -49,24 +49,28 @@ estimate_t* sgd_design5(int N, float* x, float* y, float alpha, float refMSE,
       auto end = Clock::now();
       times[tid] += duration_cast<dsec>(end - start).count();
 
-      #pragma omp barrier
-
-      if(tid == 0 && (num_steps == 25 || num_steps == 100 || num_steps == 250 ||
-          num_steps == 500 || num_steps == 1000 || num_steps == 1500 ||
-          num_steps == 2000 || num_steps == 2500 || num_steps == 5000)) {
-            ret -> b0 = 0.0;
-            ret -> b1 = 0.0;
-            ret -> b2 = 0.0;
-            ret -> b3 = 0.0;
-            for(int j = 0; j < num_threads; j++) {
-              ret -> b0 += estimates[j].b0 / static_cast<float>(num_threads);
-              ret -> b1 += estimates[j].b1 / static_cast<float>(num_threads);
-              ret -> b2 += estimates[j].b2 / static_cast<float>(num_threads);
-              ret -> b3 += estimates[j].b3 / static_cast<float>(num_threads);
-            }
-        float MSE = calculate_error(N, x, y, ret);
-        printf("num_steps parallel: %d \t MSE: %.3f\n", num_steps, MSE);
-      }
+      // #pragma omp barrier
+      //
+      // if(tid == 0 && (num_steps == 25 || num_steps == 100 || num_steps == 250 ||
+      //     num_steps == 500 || num_steps == 1000 || num_steps == 1500 ||
+      //     num_steps == 2000 || num_steps == 2500 || num_steps == 5000)) {
+      //       ret -> b0 = 0.0;
+      //       ret -> b1 = 0.0;
+      //       ret -> b2 = 0.0;
+      //       ret -> b3 = 0.0;
+      //       for(int j = 0; j < num_threads; j++) {
+      //         ret -> b0 += estimates[j].b0 / static_cast<float>(num_threads);
+      //         ret -> b1 += estimates[j].b1 / static_cast<float>(num_threads);
+      //         ret -> b2 += estimates[j].b2 / static_cast<float>(num_threads);
+      //         ret -> b3 += estimates[j].b3 / static_cast<float>(num_threads);
+      //       }
+      //   float MSE = calculate_error(N, x, y, ret);
+      //   printf("N: %d\n", N);
+      //   printf("num_steps parallel: %d \t MSE: %.3f\n", num_steps, MSE);
+      //   printf("y = (%.5f) x^3 + (%.5f) x^2 + (%.5f) x + (%.5f)\n",
+      //               ret -> b3, ret -> b2,
+      //               ret -> b1, ret -> b0);
+      // }
     }
   }
 

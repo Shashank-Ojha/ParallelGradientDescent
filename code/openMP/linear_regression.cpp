@@ -118,8 +118,7 @@ estimate_t* sgd(int N, float* x, float* y)
     estimate -> b2 = INIT_B2;
     estimate -> b3 = INIT_B3;
 
-	  for(int i = 0; i < NUM_ITER_STOCH; i++)
-		{
+	  for(int i = 0; i < NUM_ITER_STOCH; i++){
         sgd_step(N, x, y, estimate);
   	}
   	return estimate;
@@ -150,10 +149,14 @@ estimate_t* sgd_approx(int N, float* x, float* y, float alpha, float refMSE, dou
       *time += duration_cast<dsec>(end - start).count();
 
       if(num_steps == 25 || num_steps == 100 || num_steps == 250 ||
-          num_steps == 500 || num_steps == 1000 || num_steps == 1500 ||
-          num_steps == 2000 || num_steps == 2500 || num_steps == 5000) {
+         num_steps == 500 || num_steps == 1000 || num_steps == 1500 ||
+         num_steps == 2000 || num_steps == 2500 || num_steps == 5000) {
         float MSE = calculate_error(N, x, y, estimate);
+        printf("N: %d\n", N);
         printf("num_steps sequential: %d \t MSE: %.3f\n", num_steps, MSE);
+        printf("y = (%.5f) x^3 + (%.5f) x^2 + (%.5f) x + (%.5f)\n",
+                    estimate -> b3, estimate -> b2,
+                    estimate -> b1, estimate -> b0);
       }
 
     }
