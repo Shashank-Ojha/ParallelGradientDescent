@@ -32,11 +32,14 @@ void printCudaInfo()
     printf("---------------------------------------------------------\n");
 }
 
-float calculateMSE(float lower, float upper, estimate_t* est,
-                        float* X, float* Y, int N) {
+float evaluate(estimate_t* estimate, float x){
+  return (estimate->b3)*x*x*x + (estimate->b2)*x*x + (estimate->b1)*x + estimate->b0;
+}
+
+float calculateMSE(estimate_t* est, float* X, float* Y, int N) {
     float est_MSE = 0.0;
     for (int i = 0; i < N; i++) {
-        float error = Y[i] - ((est->b1) * X[i] + est->b0);
+        float error = Y[i] - evaluate(est, X[i]);
         est_MSE += error * error / static_cast<float>(N);
     }
 
@@ -45,7 +48,7 @@ float calculateMSE(float lower, float upper, estimate_t* est,
 
 __device__ __inline__ float
 evaluateCuda(estimate_t* estimate, float x){
-  return estimate->b3)*x*x*x + estimate->b2)*x*x + (estimate->b1)*x + estimate->b0;
+  return (estimate->b3)*x*x*x + (estimate->b2)*x*x + (estimate->b1)*x + estimate->b0;
 }
 
 __device__ __inline__ float
@@ -170,14 +173,14 @@ estimate_t* sgdCuda(int N, float* x, float* y, float alpha, float opt,
     }
 
     if (num_iters == 25 || num_iters == 100 || num_iters == 250 ||
-        num_iters == 500 || num_iters == 1000 || num_iters == 1500) {
-        float MSE = calculateMSE(N, x, y, ret);
+        num_iters == 500 || num_iters == 1000 || num_iters == 1500 ||
+        num_iters == 2000 || num_iters == 2500 || num_iters == 5000) {
+        float MSE = calculateMSE(ret, x, y, N);
         printf("Steps: %d\tMSE: %.3f\n", num_iters, MSE);
     }
 
   }
 
-  printf("Num iterations: %d\n", num_steps);
   printf("Num of clock cycles: %d\n", total_time);
 
   return ret;
@@ -307,13 +310,13 @@ estimate_t* sgdCudaByBlock(int N, float* x, float* y, float alpha, float opt,
     }
 
     if (num_iters == 25 || num_iters == 100 || num_iters == 250 ||
-        num_iters == 500 || num_iters == 1000 || num_iters == 1500) {
-        float MSE = calculateMSE(N, x, y, ret);
+        num_iters == 500 || num_iters == 1000 || num_iters == 1500 ||
+        num_iters == 2000 || num_iters == 2500 || num_iters == 5000) {
+        float MSE = calculateMSE(ret, x, y, N);
         printf("Steps: %d\tMSE: %.3f\n", num_iters, MSE);
     }
   }
 
-  printf("Num iterations: %d\n", num_steps);
   printf("Num of clock cycles: %d\n", total_time);
 
   return ret;
@@ -462,14 +465,14 @@ estimate_t* sgdCudaWithPartition(int N, float* x, float* y, float alpha, float o
     }
 
     if (num_iters == 25 || num_iters == 100 || num_iters == 250 ||
-        num_iters == 500 || num_iters == 1000 || num_iters == 1500) {
-        float MSE = calculateMSE(N, x, y, ret);
+        num_iters == 500 || num_iters == 1000 || num_iters == 1500 ||
+        num_iters == 2000 || num_iters == 2500 || num_iters == 5000) {
+        float MSE = calculateMSE(ret, x, y, N);
         printf("Steps: %d\tMSE: %.3f\n", num_iters, MSE);
     }
 
   }
 
-  printf("Num iterations: %d\n", num_steps);
   printf("Num of clock cycles: %d\n", total_time);
 
   return ret;
