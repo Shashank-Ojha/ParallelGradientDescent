@@ -1,0 +1,52 @@
+Folds5x2_pp.txt
+sequential MSE's
+8171.559
+7849.994
+7544.288
+7253.588
+6977.095
+6714.079
+6463.817
+6225.631
+5998.892
+parallel MSE's
+65.768
+61.974
+58.769
+55.836
+53.149
+50.683
+48.418
+46.336
+44.418
+Number of threads: 16
+Input file: Folds5x2_pp.txt
+
+-------------------------------------
+
+Reference: y = 11.00 (x) + 5.00
+
+-------------------------------------
+
+Stochastic Sequential:
+y = (0.00016) x^3 + (0.00797) x^2 + (0.00026) x + (0.00001)
+MSE: 1945.16
+Computation Time: 0.294297.
+
+-------------------------------------
+
+Stochastic Parallel:
+y = (-0.00004) x^3 + (0.00931) x^2 + (0.00034) x + (0.00001)
+MSE: 19.99
+Computation Time: 0.294501.
+
+-------------------------------------
+
+
+ Performance counter stats for './main -f Folds5x2_pp.txt -n 16 -a 0.25':
+
+            601413      cache-references                                            
+            114737      cache-misses              #   19.078 % of all cache refs    
+
+       2.048391003 seconds time elapsed
+
