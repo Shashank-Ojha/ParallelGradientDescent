@@ -51,6 +51,14 @@ estimate_t* sgd_design5(int N, float* x, float* y, float alpha, float refMSE,
 
   double* times = (double*)calloc(sizeof(double), num_threads);
 
+  unsigned int* seeds = (unsigned int*)malloc(sizeof(unsigned int) * num_threads);
+  for(int i = 0; i < num_threads; i++){
+    seeds[i] = (unsigned int)i;
+  }
+
+  float MSE = calculate_error(N, x, y, estimates);
+  printf("%.3f\n", MSE);
+
   // Run sgd in parallel to average the results
   #pragma omp parallel default(shared) private(tid)
 	{
@@ -64,7 +72,7 @@ estimate_t* sgd_design5(int N, float* x, float* y, float alpha, float refMSE,
       shuffleY[i] = y[i];
     }
 
-    shuffle(shuffleX, shuffleY, N);
+    shuffle(shuffleX, shuffleY, N, seeds+tid);
 
 		for (int num_steps = 1; num_steps <= NUM_ITER_STOCH; num_steps++) {
       auto start = Clock::now();
@@ -77,7 +85,8 @@ estimate_t* sgd_design5(int N, float* x, float* y, float alpha, float refMSE,
 
       #pragma omp barrier
 
-      if(tid == 0 && in_print_range(num_steps)) {
+      if(tid == 0 && num_steps <= 20) {
+
             averageEstimates(estimates, ret, num_threads);
             float MSE = calculate_error(N, shuffleX, shuffleY, ret);
             printf("%.3f\n", MSE);

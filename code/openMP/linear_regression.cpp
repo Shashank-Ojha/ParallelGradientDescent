@@ -125,14 +125,10 @@ estimate_t* sgd(int N, float* x, float* y)
   	return estimate;
 }
 
-bool in_print_range(int i)
-{
-  return (i < 10);
-}
 
-void shuffle(float* x, float* y, int N){
+void shuffle(float* x, float* y, int N, unsigned int* tid_seed){
   for(int i = 0; i < N; i++){
-    int j = rand() % N;
+    int j = rand_r(tid_seed) % N;
 
     float tempx = x[i];
     x[i] = x[j];

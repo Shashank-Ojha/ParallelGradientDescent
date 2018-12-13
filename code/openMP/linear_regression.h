@@ -26,8 +26,6 @@ void sgd_step(int N, float* x, float* y, estimate_t* estimate, int j);
 
 estimate_t* sgd(int N, float* x, float* y);
 
-void shuffle(float* x, float* y, int N);
-
-bool in_print_range(int i);
+void shuffle(float* x, float* y, int N, unsigned int* tid_seed);
 
 estimate_t* sgd_approx(int N, float* x, float* y, float alpha, float refMSE, double* time);
