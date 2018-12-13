@@ -100,10 +100,9 @@ estimate_t* bgd(int N, float* x, float* y, int num_threads)
   	return estimate;
 }
 
-void sgd_step(int N, float* x, float* y, estimate_t* estimate)
+void sgd_step(int N, float* x, float* y, estimate_t* estimate, int j)
 {
-    int j = rand() % N;
-
+    j = j % N;
     estimate -> b0 -= STEP_SIZE_STOCH * getdB0(x[j], y[j], estimate, N);
     estimate -> b1 -= STEP_SIZE_STOCH * getdB1(x[j], y[j], estimate, N);
     estimate -> b2 -= STEP_SIZE_STOCH * getdB2(x[j], y[j], estimate, N);
@@ -119,59 +118,28 @@ estimate_t* sgd(int N, float* x, float* y)
     estimate -> b3 = INIT_B3;
 
 	  for(int i = 0; i < NUM_ITER_STOCH; i++){
-        sgd_step(N, x, y, estimate);
+      for(int i = 0; i < N; i++){
+        sgd_step(N, x, y, estimate, i);
+      }
   	}
   	return estimate;
 }
 
 bool in_print_range(int i)
 {
-  return (i == 1 ||
-          i == 5 ||
-          i == 50 ||
-          i == 100 ||
-          i == 250 ||
-          i == 500 ||
-          i == 1000 ||
-          i == 5000 ||
-          i == 10000 ||
-          i == 50000 ||
-          i == 100000 ||
-          i == 500000 ||
-          (i % 1000000) == 0 ||
-          (i % 1000000) == 500000);
+  return (i < 10);
 }
-/*
-        This is just doing an alpha-approx using SGD on
-        a single thread
- */
-estimate_t* sgd_approx(int N, float* x, float* y, float alpha, float refMSE, double* time)
-{
-    using namespace std::chrono;
-    typedef std::chrono::high_resolution_clock Clock;
-    typedef std::chrono::duration<double> dsec;
 
-	  estimate_t* estimate = (estimate_t*)malloc(sizeof(estimate_t));
-    estimate -> b0 = INIT_B0;
-    estimate -> b1 = INIT_B1;
-    estimate -> b2 = INIT_B2;
-    estimate -> b3 = INIT_B3;
+void shuffle(float* x, float* y, int N){
+  for(int i = 0; i < N; i++){
+    int j = rand() % N;
 
-    printf("sequential MSE's\n");
-    for(int num_steps = 1; num_steps <= NUM_ITER_STOCH; num_steps++)
-    {
-      auto start = Clock::now();
-      sgd_step(N, x, y, estimate);
-      auto end = Clock::now();
+    float tempx = x[i];
+    x[i] = x[j];
+    x[j] = tempx;
 
-      *time += duration_cast<dsec>(end - start).count();
-
-      if(in_print_range(num_steps)) {
-        float MSE = calculate_error(N, x, y, estimate);
-        printf("%.3f\n", MSE);
-      }
-
-    }
-
-  	return estimate;
+    float tempy = y[i];
+    y[i] = y[j];
+    y[j] = tempy;
+  }
 }

@@ -150,8 +150,10 @@ int main(int argc, const char *argv[])
 				 auto batch_end = Clock::now();
 		  	 batch_time = duration_cast<dsec>(batch_end - batch_start).count();
 
-         estimate_sgd_sequential = *sgd_approx(N, x, y, alpha, refMSE, &stochastic_sequential_time);
+         printf("sequential MSE's\n");
+         estimate_sgd_sequential = *sgd_design5(N, x, y, alpha, refMSE, 1, &stochastic_sequential_time);
 
+         printf("parallel MSE's\n");
       	 estimate_sgd_parallel = *sgd_design5(N, x, y, alpha, refMSE, num_of_threads, &stochastic_parallel_time);
       }
 
