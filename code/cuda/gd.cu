@@ -100,10 +100,10 @@ sgd_step(int N, float* device_X, float* device_Y,
   float db2 = getdB0Cuda(device_X[pi], device_Y[pi], device_estimates+index, N);
   float db3 = getdB1Cuda(device_X[pi], device_Y[pi], device_estimates+index, N);
 
-  device_estimates[index].b0 -= STEP_SIZE_STOCH * db0;
-  device_estimates[index].b1 -= STEP_SIZE_STOCH * db1;
-  device_estimates[index].b2 -= STEP_SIZE_STOCH * db2;
-  device_estimates[index].b3 -= STEP_SIZE_STOCH * db3;
+  device_estimates[index].b0 = 5;
+  device_estimates[index].b1 = 5;
+  device_estimates[index].b2 = 5;
+  device_estimates[index].b3 = 5;
 
   clock_t end = clock();
   times[index] = (int)(end - start);
@@ -111,9 +111,8 @@ sgd_step(int N, float* device_X, float* device_Y,
 
 // Running SGD with all threads each sampling one point and averaging result
 // after each SGD step. Checking convergence after each step
-estimate_t* sgdCuda(int N, float* x, float* y, float alpha, float opt,
-                    int blocks, int threadsPerBlock){
-
+estimate_t* sgdCuda(int N, float* x, float* y, int blocks, int threadsPerBlock)
+{
   int* device_times;
   curandState* states;
   float* device_X;
@@ -192,33 +191,34 @@ estimate_t* sgdCuda(int N, float* x, float* y, float alpha, float opt,
 // Assumes the number of indexes is equal to N
 __global__ void
 sgdStepByBlock(int N, float* device_X, float* device_Y,
-               estimate_t* device_estimates, int k, curandState* states, int* times) {
+               estimate_t* device_estimates, int samplesPerThread, curandState* states, int* times) {
   clock_t start = clock();
   __shared__ estimate_t thread_estimate[THREADS_PER_BLOCK];
 
   int index = blockIdx.x * blockDim.x + threadIdx.x;
 
-  thread_estimate[threadIdx.x].b0 = 0.0;
-  thread_estimate[threadIdx.x].b1 = 0.0;
-  thread_estimate[threadIdx.x].b2 = 0.0;
-  thread_estimate[threadIdx.x].b3 = 0.0;
+  thread_estimate[threadIdx.x].b0 = INIT_B0;
+  thread_estimate[threadIdx.x].b1 = INIT_B1;
+  thread_estimate[threadIdx.x].b2 = INIT_B2;
+  thread_estimate[threadIdx.x].b3 = INIT_B3;
+
   curandState localState = states[index];
 
-  for(int i = 0; i < k; i++)
+  for(int i = 0; i < samplesPerThread; i++)
   {
       int pi = curand(&localState) % N;
       thread_estimate[threadIdx.x].b0 +=
         (getdB0Cuda(device_X[pi], device_Y[pi], device_estimates+blockIdx.x, N) /
-        static_cast<float>(k));
+        static_cast<float>(samplesPerThread));
       thread_estimate[threadIdx.x].b1 +=
         (getdB1Cuda(device_X[pi], device_Y[pi], device_estimates+blockIdx.x, N) /
-        static_cast<float>(k));
+        static_cast<float>(samplesPerThread));
       thread_estimate[threadIdx.x].b2 +=
         (getdB2Cuda(device_X[pi], device_Y[pi], device_estimates+blockIdx.x, N) /
-        static_cast<float>(k));
+        static_cast<float>(samplesPerThread));
       thread_estimate[threadIdx.x].b3 +=
         (getdB3Cuda(device_X[pi], device_Y[pi], device_estimates+blockIdx.x, N) /
-        static_cast<float>(k));
+        static_cast<float>(samplesPerThread));
   }
   states[index] = localState;
 
@@ -248,8 +248,8 @@ sgdStepByBlock(int N, float* device_X, float* device_Y,
 
 // Running SGD on each block with all threads sampling k points and averaging result
 // after each SGD step. Checking convergence after each step
-estimate_t* sgdCudaByBlock(int N, float* x, float* y, float alpha, float opt,
-                     int k, int blocks, int threadsPerBlock){
+estimate_t* sgdCudaByBlock(int N, float* x, float* y, int samplesPerThread,
+                           int blocks, int threadsPerBlock){
   int* device_times;
   curandState* states;
   float* device_X;
@@ -264,8 +264,8 @@ estimate_t* sgdCudaByBlock(int N, float* x, float* y, float alpha, float opt,
   cudaMalloc((void **)&device_Y, sizeof(float) * N);
   cudaMalloc((void **)&device_estimates, sizeof(estimate_t) * blocks);
 
-  estimate_t* estimates = (estimate_t*)calloc(totalThreads, sizeof(estimate_t));
-  for (int i = 0; i < totalThreads; i++) {
+  estimate_t* estimates = (estimate_t*)calloc(blocks, sizeof(estimate_t));
+  for (int i = 0; i < blocks; i++) {
       estimates[i].b0 = INIT_B0;
       estimates[i].b1 = INIT_B1;
       estimates[i].b2 = INIT_B2;
@@ -285,7 +285,7 @@ estimate_t* sgdCudaByBlock(int N, float* x, float* y, float alpha, float opt,
   int total_time = 0;
 
   for (int num_iters = 0; num_iters < NUM_ITER_STOCH; num_iters++) {
-    sgdStepByBlock<<<blocks, threadsPerBlock>>>(N, device_X, device_Y, device_estimates, k, states, device_times);
+    sgdStepByBlock<<<blocks, threadsPerBlock>>>(N, device_X, device_Y, device_estimates, samplesPerThread, states, device_times);
     cudaThreadSynchronize();
 
     cudaMemcpy(times, device_times, totalThreads * sizeof(int),
@@ -399,8 +399,8 @@ sgdStepWithPartition(int N, float* device_X, float* device_Y,
   times[index] = (int)(stop - start);
 }
 
-estimate_t* sgdCudaWithPartition(int N, float* x, float* y, float alpha, float opt,
-                     int blocks, int threadsPerBlock){
+estimate_t* sgdCudaWithPartition(int N, float* x, float* y, int blocks,
+                                 int threadsPerBlock){
 
   int* device_times;
   curandState* states;
