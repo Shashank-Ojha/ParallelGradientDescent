@@ -197,19 +197,19 @@ int main(int argc, char** argv)
 
     srand(418);
 
-    printf("Batch:\n");
-    estimate_t* estimate_bgd = bgd(N, x, y);
-    printf("y = (%.5f) x^3 + (%.5f) x^2 + (%.5f) x + (%.5f)\n",
-            estimate_bgd -> b3, estimate_bgd -> b2, estimate_bgd -> b1,
-            estimate_bgd -> b0);
-
-    printf("\n---------------------\n\n");
-
-    printf("Stochastic:\n");
-    estimate_t* estimate_sgd = sgd(N, x, y);
-    printf("y = (%.5f) x^3 + (%.5f) x^2 + (%.5f) x + (%.5f)\n",
-            estimate_sgd -> b3, estimate_sgd -> b2,
-            estimate_sgd -> b1, estimate_sgd -> b0);
+    // printf("Batch:\n");
+    // estimate_t* estimate_bgd = bgd(N, x, y);
+    // printf("y = (%.5f) x^3 + (%.5f) x^2 + (%.5f) x + (%.5f)\n",
+    //         estimate_bgd -> b3, estimate_bgd -> b2, estimate_bgd -> b1,
+    //         estimate_bgd -> b0);
+    //
+    // printf("\n---------------------\n\n");
+    //
+    // printf("Stochastic:\n");
+    // estimate_t* estimate_sgd = sgd(N, x, y);
+    // printf("y = (%.5f) x^3 + (%.5f) x^2 + (%.5f) x + (%.5f)\n",
+    //         estimate_sgd -> b3, estimate_sgd -> b2,
+    //         estimate_sgd -> b1, estimate_sgd -> b0);
 
     printf("\n---------------------\n\n");
 

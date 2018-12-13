@@ -100,10 +100,10 @@ sgd_step(int N, float* device_X, float* device_Y,
   float db2 = getdB0Cuda(device_X[pi], device_Y[pi], device_estimates+index, N);
   float db3 = getdB1Cuda(device_X[pi], device_Y[pi], device_estimates+index, N);
 
-  device_estimates[index].b0 = 5;
-  device_estimates[index].b1 = 5;
-  device_estimates[index].b2 = 5;
-  device_estimates[index].b3 = 5;
+  device_estimates[index].b0 -= STEP_SIZE_STOCH * db0;
+  device_estimates[index].b1 -= STEP_SIZE_STOCH * db1;
+  device_estimates[index].b2 -= STEP_SIZE_STOCH * db2;
+  device_estimates[index].b3 -= STEP_SIZE_STOCH * db3;
 
   clock_t end = clock();
   times[index] = (int)(end - start);
@@ -343,7 +343,7 @@ shuffle(float* x, float* y, int size, curandState* randState){
 // Assumes the number of indexes is equal to N
 __global__ void
 sgdStepWithPartition(int N, float* device_X, float* device_Y,
-               estimate_t* device_estimates, curandState* states, int* times) {
+               estimate_t* device_estimates, curandState* states, long* times) {
 
   int index = blockIdx.x * blockDim.x + threadIdx.x;
 
@@ -376,9 +376,10 @@ sgdStepWithPartition(int N, float* device_X, float* device_Y,
     subsetY[i-lo] = device_Y[i];
   }
 
+  clock_t start = clock();
+
   shuffle(subsetX, subsetY, subsetSize, &localState);
 
-  clock_t start = clock();
 
   for(int i = 0; i < subsetSize; i++)
   {
@@ -396,13 +397,13 @@ sgdStepWithPartition(int N, float* device_X, float* device_Y,
   states[index] = localState;
 
   clock_t stop = clock();
-  times[index] = (int)(stop - start);
+  times[index] = (long)(stop - start);
 }
 
 estimate_t* sgdCudaWithPartition(int N, float* x, float* y, int blocks,
                                  int threadsPerBlock){
 
-  int* device_times;
+  long* device_times;
   curandState* states;
   float* device_X;
   float* device_Y;
@@ -410,7 +411,7 @@ estimate_t* sgdCudaWithPartition(int N, float* x, float* y, int blocks,
 
   int totalThreads = blocks * threadsPerBlock;
 
-  cudaMalloc((void **)&device_times, totalThreads * sizeof(int));
+  cudaMalloc((void **)&device_times, totalThreads * sizeof(long));
   cudaMalloc((void **)&states, totalThreads * sizeof(curandState));
   cudaMalloc((void **)&device_X, sizeof(float) * N);
   cudaMalloc((void **)&device_Y, sizeof(float) * N);
@@ -435,19 +436,19 @@ estimate_t* sgdCudaWithPartition(int N, float* x, float* y, int blocks,
 
   estimate_t* ret = (estimate_t*)malloc(sizeof(estimate_t));
 
-  int times[totalThreads];
-  int total_time = 0;
+  long times[totalThreads];
+  long total_time = 0;
 
   for (int num_iters = 0; num_iters < NUM_ITER_STOCH; num_iters++) {
     sgdStepWithPartition<<<blocks, threadsPerBlock>>>(N, device_X, device_Y, device_estimates, states, device_times);
     cudaThreadSynchronize();
 
-    cudaMemcpy(times, device_times, totalThreads * sizeof(int),
+    cudaMemcpy(times, device_times, totalThreads * sizeof(long),
                cudaMemcpyDeviceToHost);
     cudaMemcpy(estimates, device_estimates, totalThreads * sizeof(estimate_t),
                cudaMemcpyDeviceToHost);
 
-    int max_time = 0;
+    long max_time = 0;
     for (int i = 0; i < totalThreads; i++) {
         if (times[i] > max_time) max_time = times[i];
     }
@@ -474,7 +475,7 @@ estimate_t* sgdCudaWithPartition(int N, float* x, float* y, int blocks,
 
   }
 
-  printf("Num of clock cycles: %d\n", total_time);
+  printf("Num of clock cycles: %ld\n", total_time);
 
   return ret;
 }
