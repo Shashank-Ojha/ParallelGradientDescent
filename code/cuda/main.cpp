@@ -16,6 +16,9 @@ estimate_t* sgdCudaWithPartition(int N, float* x, float* y, float alpha, float o
 
 float calculateMSE(estimate_t* est, float* X, float* Y, int N);
 
+float evaluate(estimate_t* estimate, float x);
+
+
 
 void printCudaInfo();
 
@@ -61,9 +64,6 @@ int checkInputArguments(char* filename, float alpha, int blocks,
     return 0;
 }
 
-float evaluate(estimate_t* estimate, float x){
-  return (estimate->b3)*x*x*x + (estimate->b2)*x*x + (estimate->b1)*x + estimate->b0;
-}
 
 float getdB0(float x, float y, estimate_t* estimate, int N){
   float prediction = evaluate(estimate, x);
@@ -215,8 +215,6 @@ int main(int argc, char** argv)
             estimate_bgd -> b3, estimate_bgd -> b2, estimate_bgd -> b1,
             estimate_bgd -> b0);
 
-    float MSE_batch = 
-
     estimate_t* estimate_sgd = sgd(N, x, y);
     printf("Stochastic: y = (%.3f) x^3 + (%.3f) x^2 + (%.3f) x + (%.3f)\n",
             estimate_sgd -> b3, estimate_sgd -> b2, estimate_sgd -> b1,
@@ -228,6 +226,8 @@ int main(int argc, char** argv)
    printf("Cuda Stochastic: y = (%.3f) x^3 + (%.3f) x^2 + (%.3f) x + (%.3f)\n",
            estimate_sgdCuda -> b3, estimate_sgdCuda -> b2,
            estimate_sgdCuda -> b1, estimate_sgdCuda -> b0);
+
+
 
     // estimate_t* estimate_sgdCudaByBlock = sgdCudaByBlock(N, x, y, alpha,
     //                     refMSE, samplesPerThread, blocks, threadsPerBlock);

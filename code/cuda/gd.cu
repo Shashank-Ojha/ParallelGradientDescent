@@ -32,6 +32,7 @@ void printCudaInfo()
     printf("---------------------------------------------------------\n");
 }
 
+
 float evaluate(estimate_t* estimate, float x){
   return (estimate->b3)*x*x*x + (estimate->b2)*x*x + (estimate->b1)*x + estimate->b0;
 }
