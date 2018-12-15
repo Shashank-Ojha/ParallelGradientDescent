@@ -1,23 +1,14 @@
+/**
+ * Parallel Gradient Descent via CUDA
+ * Shashank Ojha(shashano), Kylee Santos(ksantos)
+ */
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <getopt.h>
 #include <string>
 
 #include "regression.h"
-
-estimate_t* bgdCuda(int N, float* x, float* y);
-estimate_t* sgdCuda(int N, float* x, float* y, int blocks, int threadsPerBlock);
-estimate_t* sgdCudaByBlock(int N, float* x, float* y, int samplesPerThread,
-                           int blocks, int threadsPerBlock);
-
-estimate_t* sgdCudaWithPartition(int N, float* x, float* y, int blocks,
-                                 int threadsPerBlock);
-
-float calculateMSE(estimate_t* est, float* X, float* Y, int N);
-
-float evaluate(estimate_t* estimate, float x);
-
-void printCudaInfo();
 
 void usage(const char* progname) {
     printf("Usage: %s [options]\n", progname);
@@ -55,78 +46,18 @@ int checkInputArguments(char* filename, int blocks,
     return 0;
 }
 
-
-float getdB0(float x, float y, estimate_t* estimate, int N){
-  float prediction = evaluate(estimate, x);
-  return (-2.0 / static_cast<float>(N)) * (y-prediction);
+void print_estimate(char* design, estimate_t* est) {
+    printf("%s:\n", design);
+    printf("y = (%.5f) x^3 + (%.5f) x^2 + (%.5f) x + (%.5f)\n",
+           est -> b3, est -> b2, est -> b1, est -> b0);
 }
 
-float getdB1(float x, float y, estimate_t* estimate, int N){
-  float prediction = evaluate(estimate, x);
-  return (-2.0 / static_cast<float>(N)) * (y-prediction)*x;
+void print_MSE(estimate_t* est, float* x, float* y, int N) {
+    printf("MSE: %.5f\n", calculate_error(N, x, y, est));
 }
 
-float getdB2(float x, float y, estimate_t* estimate, int N){
-  float prediction = evaluate(estimate, x);
-  return (-2.0 / static_cast<float>(N)) * (y-prediction)*x*x;
-}
-
-float getdB3(float x, float y, estimate_t* estimate, int N){
-  float prediction = evaluate(estimate, x);
-  return (-2.0 / static_cast<float>(N)) * (y-prediction)*x*x;
-}
-
-estimate_t* bgd(int N, float* x, float* y){
-  estimate_t* estimate = (estimate_t*)malloc(sizeof(estimate_t));
-  estimate -> b0 = INIT_B0;
-  estimate -> b1 = INIT_B1;
-  estimate -> b2 = INIT_B2;
-  estimate -> b3 = INIT_B3;
-
-  for(int i = 0; i < NUM_ITER_BATCH; i++){
-    float db0 = 0.0;
-    float db1 = 0.0;
-    float db2 = 0.0;
-    float db3 = 0.0;
-    for(int j = 0; j < N; j++) {
-      db0 += getdB0(x[j], y[j], estimate, N);
-      db1 += getdB1(x[j], y[j], estimate, N);
-      db2 += getdB2(x[j], y[j], estimate, N);
-      db3 += getdB3(x[j], y[j], estimate, N);
-    }
-
-    estimate -> b0 -= STEP_SIZE_BATCH * db0;
-    estimate -> b1 -= STEP_SIZE_BATCH * db1;
-    estimate -> b2 -= STEP_SIZE_BATCH * db2;
-    estimate -> b3 -= STEP_SIZE_BATCH * db3;
-  }
-
-  return estimate;
-}
-
-estimate_t* sgd(int N, float* x, float* y){
-  estimate_t* estimate = (estimate_t*)malloc(sizeof(estimate_t));
-  estimate -> b0 = INIT_B0;
-  estimate -> b1 = INIT_B1;
-  estimate -> b2 = INIT_B2;
-  estimate -> b3 = INIT_B3;
-  for(int i = 0; i < NUM_ITER_STOCH; i++){
-    //pick a point randomly
-    int pi = rand() % N;
-
-    estimate -> b0 -= STEP_SIZE_STOCH * getdB0(x[pi], y[pi], estimate, N);
-    estimate -> b1 -= STEP_SIZE_STOCH * getdB1(x[pi], y[pi], estimate, N);
-    estimate -> b2 -= STEP_SIZE_STOCH * getdB2(x[pi], y[pi], estimate, N);
-    estimate -> b3 -= STEP_SIZE_STOCH * getdB3(x[pi], y[pi], estimate, N);
-
-    if (i == 25 || i == 100 || i == 250 || i == 500 || i == 1000 || i == 1500 ||
-        i == 2000 || i == 2500 || i == 5000) {
-        float MSE = calculateMSE(estimate, x, y, N);
-        printf("Steps: %d\tMSE: %.3f\n", i, MSE);
-    }
-  }
-
-  return estimate;
+void print_divider() {
+    printf("\n---------------------\n\n");
 }
 
 int main(int argc, char** argv)
@@ -135,7 +66,6 @@ int main(int argc, char** argv)
     int blocks = -1;
     int threadsPerBlock = -1;
     int samplesPerThread = -1;
-
 
     //Parse command line arguments
     int opt;
@@ -167,11 +97,6 @@ int main(int argc, char** argv)
 
     // Read File
     int N;
-
-    float refSlope;
-    float refStdDev;
-    float refMSE;
-
     float* x;
     float* y;
 
@@ -182,10 +107,6 @@ int main(int argc, char** argv)
     }
 
     fscanf(input, "%d\n", &N);
-    fscanf(input, "%f\n", &refSlope);
-    fscanf(input, "%f\n", &refStdDev);
-    fscanf(input, "%f\n", &refMSE);
-
     x = (float*)malloc(sizeof(float) * N);
     y = (float*)malloc(sizeof(float) * N);
 
@@ -197,50 +118,38 @@ int main(int argc, char** argv)
 
     srand(418);
 
-    // printf("Batch:\n");
-    // estimate_t* estimate_bgd = bgd(N, x, y);
-    // printf("y = (%.5f) x^3 + (%.5f) x^2 + (%.5f) x + (%.5f)\n",
-    //         estimate_bgd -> b3, estimate_bgd -> b2, estimate_bgd -> b1,
-    //         estimate_bgd -> b0);
+    char* design;
+    print_divider();
+
+    estimate_t* est_bgd = bgd(N, x, y);
+    design = (char*)("Batch");
+    print_estimate(design, est_bgd);
+    print_MSE(est_bgd, x, y, N);
+    print_divider();
+
+    design = (char*)("Stochastic");
+    estimate_t* est_sgd = sgd(N, x, y);
+    print_estimate(design, est_sgd);
+    print_MSE(est_sgd, x, y, N);
+    print_divider();
+
+    design = (char*)("Cuda Stochastic Per Thread");
+    estimate_t* est_sgdCuda = sgd_per_thread(N, x, y, blocks, threadsPerBlock);
+    print_estimate(design, est_sgdCuda);
+    print_MSE(est_sgdCuda, x, y, N);
+    print_divider();
+
+    // design = (char*)("Cuda Stochastic by Block");
+    // estimate_t* est_sgdByBlock = sgdCudaByBlock(
+    //     N, x, y, samplesPerThread, blocks, threadsPerBlock
+    // );
+    // print_estimate(design, est_sgdByBlock);
+    // print_divider();
     //
-    // printf("\n---------------------\n\n");
-    //
-    // printf("Stochastic:\n");
-    // estimate_t* estimate_sgd = sgd(N, x, y);
-    // printf("y = (%.5f) x^3 + (%.5f) x^2 + (%.5f) x + (%.5f)\n",
-    //         estimate_sgd -> b3, estimate_sgd -> b2,
-    //         estimate_sgd -> b1, estimate_sgd -> b0);
+    // design = (char*)("Cuda Stochastic with Partition");
+    // estimate_t* est_sgdPartition = sgdCudaWithPartition(N, x, y, blocks, threadsPerBlock);
+    // print_estimate(design, est_sgdPartition);
+    // print_divider();
 
-    printf("\n---------------------\n\n");
-
-    printf("Cuda Stochastic:\n");
-    estimate_t* estimate_sgdCuda = sgdCuda(N, x, y, blocks, threadsPerBlock);
-
-    printf("y = (%.5f) x^3 + (%.5f) x^2 + (%.5f) x + (%.5f)\n",
-           estimate_sgdCuda -> b3, estimate_sgdCuda -> b2,
-           estimate_sgdCuda -> b1, estimate_sgdCuda -> b0);
-
-
-    printf("\n---------------------\n\n");
-
-    printf("Cuda Stochastic by block:\n");
-    estimate_t* estimate_sgdCudaByBlock = sgdCudaByBlock(N, x, y,
-                                  samplesPerThread, blocks, threadsPerBlock);
-
-    printf("y = (%.5f) x^3 + (%.5f) x^2 + (%.5f) x + (%.5f)\n",
-           estimate_sgdCudaByBlock -> b3, estimate_sgdCudaByBlock -> b2,
-           estimate_sgdCudaByBlock -> b1, estimate_sgdCudaByBlock -> b0);
-
-    printf("\n---------------------\n\n");
-
-    printf("Cuda Stochastic w Partition:\n");
-    estimate_t* estimate_sgdCudaWithPartition = sgdCudaWithPartition(N, x, y,
-                        blocks, threadsPerBlock);
-
-    printf("y = (%.5f) x^3 + (%.5f) x^2 + (%.5f) x + (%.5f)\n",
-            estimate_sgdCudaWithPartition -> b3,
-            estimate_sgdCudaWithPartition -> b2,
-            estimate_sgdCudaWithPartition -> b1,
-            estimate_sgdCudaWithPartition -> b0);
     return 0;
 }
