@@ -1,6 +1,6 @@
 APP_NAME=main
 
-OBJS=linear_regression.o sgd_designs.o main.o
+OBJS=regression.o sgd_designs.o main.o
 
 default: $(APP_NAME)
 

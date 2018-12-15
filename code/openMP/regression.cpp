@@ -8,7 +8,7 @@
 #include <climits>
 
 #include "gd.h"
-#include "linear_regression.h"
+#include "regression.h"
 
 float evaluate(estimate_t* estimate, float x){
   return (estimate->b3)*x*x*x + (estimate->b2)*x*x + (estimate->b1)*x + estimate->b0;
@@ -47,10 +47,10 @@ float calculate_error(int N, float* x, float* y, estimate_t* estimate) {
 estimate_t* bgd(int N, float* x, float* y, int num_threads)
 {
 	  omp_set_num_threads(num_threads);
-    num_t* partial_db0 = (num_t*)malloc(sizeof(num_t) * num_threads);
-		num_t* partial_db1 = (num_t*)malloc(sizeof(num_t) * num_threads);
-    num_t* partial_db2 = (num_t*)malloc(sizeof(num_t) * num_threads);
-    num_t* partial_db3 = (num_t*)malloc(sizeof(num_t) * num_threads);
+    float* partial_db0 = (float*)malloc(sizeof(float) * num_threads);
+		float* partial_db1 = (float*)malloc(sizeof(float) * num_threads);
+    float* partial_db2 = (float*)malloc(sizeof(float) * num_threads);
+    float* partial_db3 = (float*)malloc(sizeof(float) * num_threads);
 	  estimate_t* estimate = (estimate_t*)malloc(sizeof(estimate_t));
     estimate -> b0 = INIT_B0;
 	  estimate -> b1 = INIT_B1;
@@ -59,25 +59,20 @@ estimate_t* bgd(int N, float* x, float* y, int num_threads)
 
 	  for(int i = 0; i < NUM_ITER_BATCH; i++)
 		{
-				for(int k = 0; k < num_threads; k++) {
-          partial_db0[k].num = 0.0;
-					partial_db1[k].num = 0.0;
-          partial_db2[k].num = 0.0;
-          partial_db3[k].num = 0.0;
-				}
-
 				int j, tid;
-
 		    #pragma omp parallel for default(shared) private(j, tid) schedule(static)
 			    for(j = 0; j < N; j++)
 			    {
 				  	tid = omp_get_thread_num();
-					  // TODO: change the partial sum arrays so they have padding
-					  // 		right now, only a float so there is false sharing and so it is slower
-            partial_db0[tid].num += getdB0(x[j], y[j], estimate, N);
-					  partial_db1[tid].num += getdB1(x[j], y[j], estimate, N);
-            partial_db2[tid].num += getdB2(x[j], y[j], estimate, N);
-          	partial_db3[tid].num += getdB3(x[j], y[j], estimate, N);
+            partial_db0[tid] = 0.0;
+            partial_db1[tid] = 0.0;
+            partial_db2[tid] = 0.0;
+            partial_db3[tid] = 0.0;
+
+            partial_db0[tid] += getdB0(x[j], y[j], estimate, N) / static_cast<float>(N);
+					  partial_db1[tid] += getdB1(x[j], y[j], estimate, N) / static_cast<float>(N);
+            partial_db2[tid] += getdB2(x[j], y[j], estimate, N) / static_cast<float>(N);
+          	partial_db3[tid] += getdB3(x[j], y[j], estimate, N) / static_cast<float>(N);
 			  	}
 
         float db0 = 0.0;
@@ -86,10 +81,10 @@ estimate_t* bgd(int N, float* x, float* y, int num_threads)
         float db3 = 0.0;
 				for (int k = 0; k < num_threads; k++)
 				{
-          db0 += partial_db0[k].num;
-					db1 += partial_db1[k].num;
-          db2 += partial_db2[k].num;
-          db3 += partial_db3[k].num;
+          db0 += partial_db0[k];
+					db1 += partial_db1[k];
+          db2 += partial_db2[k];
+          db3 += partial_db3[k];
 				}
 
         estimate -> b0 -= STEP_SIZE_BATCH * db0;
@@ -118,8 +113,23 @@ estimate_t* sgd(int N, float* x, float* y)
     estimate -> b3 = INIT_B3;
 
 	  for(int i = 0; i < NUM_ITER_STOCH; i++){
-      for(int i = 0; i < N; i++){
-        sgd_step(N, x, y, estimate, i);
+        int pi = rand() % N;
+        sgd_step(N, x, y, estimate, pi);
+  	}
+  	return estimate;
+}
+
+estimate_t* sgd_epochs(int N, float* x, float* y)
+{
+	  estimate_t* estimate = (estimate_t*)malloc(sizeof(estimate_t));
+	  estimate -> b0 = INIT_B0;
+    estimate -> b1 = INIT_B1;
+    estimate -> b2 = INIT_B2;
+    estimate -> b3 = INIT_B3;
+
+	  for(int i = 0; i < NUM_EPOCHS; i++){
+      for(int j = 0; j < N; j++){
+        sgd_step(N, x, y, estimate, j);
       }
   	}
   	return estimate;

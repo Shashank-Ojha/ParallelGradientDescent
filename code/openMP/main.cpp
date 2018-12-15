@@ -15,7 +15,7 @@
 #include "mic.h"
 
 #include "gd.h"
-#include "linear_regression.h"
+#include "regression.h"
 #include "sgd_designs.h"
 
 #define BUFSIZE 1024
@@ -76,13 +76,6 @@ static void print_estimate_information(const char *estimateName, estimate_t* est
          estimate -> b1, estimate -> b0);
   printf("MSE: %0.2f\n", MSE);
   printf("Computation Time: %lf.\n", time);
-
-  // printf("Stochastic Sequential:\n");
-  // printf("y = (%.5f) x^3 + (%.5f) x^2 + (%.5f) x + (%.5f)\n",
-  //             estimate_sgd_sequential.b3, estimate_sgd_sequential.b2,
-  //             estimate_sgd_sequential.b1, estimate_sgd_sequential.b0);
-  // printf("MSE: %0.2f\n", sgd_MSE_sequential);
-  // printf("Computation Time: %lf.\n", stochastic_sequential_time);
 }
 int main(int argc, const char *argv[])
 {
@@ -94,8 +87,8 @@ int main(int argc, const char *argv[])
 
     /* You'll want to use these parameters in your algorithm */
     const char *input_filename = get_option_string("-f", NULL);
-
     int num_of_threads = get_option_int("-n", 1);
+    int samplesPerThread = get_option_int("-s", 1);
 
     if (input_filename == NULL) {
       //error
@@ -104,6 +97,7 @@ int main(int argc, const char *argv[])
     }
 
     printf("Number of threads: %d\n", num_of_threads);
+    printf("Samples per thread: %d\n", samplesPerThread);
     printf("Input file: %s\n", input_filename);
 
     print_divider();
@@ -135,6 +129,21 @@ int main(int argc, const char *argv[])
     double k_samples_time = 0.0;
     double stochastic_sequential_time = 0.0;
     double stochastic_parallel_time = 0.0;
+
+    /*
+        Different types of designs:
+
+        batch : 1 thread
+        batch : n threads
+        sgdPerThread : 1 thread
+        sgd_epochsPerThread : 1 thread
+        sgdPerThread : n threads
+        sgd_epochsPerThread : n threads
+        sgd_with_k_samples : 1 sample, 1 threads (SAME AS sgdPerThread : 1 thread)
+        sgd_with_k_samples : 1 sample, n threads
+        sgd_with_k_samples : k samples, 1 thread
+        sgd_with_k_samples : k samples, n threads
+    */
 
 	  estimate_t estimate_bgd, estimate_sgd_sequential, estimate_sgd_parallel;
 
@@ -171,7 +180,7 @@ int main(int argc, const char *argv[])
     float sgd_MSE_sequential = calculate_error(N, x, y, &estimate_sgd_sequential);
 	  float sgd_MSE_parallel = calculate_error(N, x, y, &estimate_sgd_parallel);
 
-    // print_divider();
+    print_divider();
 
     // print_estimate_information("Batch", &estimate_bgd, bgd_MSE, batch_time);
 

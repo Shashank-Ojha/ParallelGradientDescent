@@ -8,7 +8,7 @@
 #include <climits>
 
 #include "gd.h"
-#include "linear_regression.h"
+#include "regression.h"
 #include "sgd_designs.h"
 
 /*
@@ -22,6 +22,7 @@
   typedef std::chrono::high_resolution_clock Clock;
   typedef std::chrono::duration<double> dsec;
 
+  auto start = Clock::now();
   estimate_t* estimate = (estimate_t*)(malloc(sizeof(estimate_t)));
   estimate -> b0 = INIT_B0;
   estimate -> b1 = INIT_B1;
@@ -61,7 +62,7 @@
         local_db3[tid] += getdB3(x[pi], y[pi], estimate, N) / static_cast<float>(samplesPerThread);
       }
     }
-  //
+
     //accumulate local_dbs
     float db0 = 0.0;
     float db1 = 0.0;
@@ -81,11 +82,13 @@
     estimate -> b2 -= STEP_SIZE_STOCH * db2;
     estimate -> b3 -= STEP_SIZE_STOCH * db3;
 
+    //Change this when collecting data
     if(num_steps % 5000 == 0) {
           float MSE = calculate_error(N, x, y, estimate);
           printf("%.3f\n", MSE);
     }
   }
+
 
   return estimate;
 }
@@ -166,6 +169,7 @@ estimate_t* sgd_per_thread(int N, float* x, float* y, int num_threads, double* t
 
       #pragma omp barrier
 
+      //Change this when collecting data
       if(tid == 0 && num_steps <= 20) {
             averageEstimates(estimates, ret, num_threads);
             float MSE = calculate_error(N, shuffleX, shuffleY, ret);
