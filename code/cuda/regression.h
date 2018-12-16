@@ -14,10 +14,9 @@ const float INIT_B0 = 0.0;
 const float STEP_SIZE_BATCH = 0.001;
 const int NUM_ITER_BATCH =  100000;
 
-const float STEP_SIZE_STOCH = 0.001;
-const int NUM_ITER_STOCH =  200000;
-const int BATCH_SIZE_STOCH = 5;
-const int CHECK_INTERVAL = 5000;
+const float STEP_SIZE_STOCH = 0.25;
+const int NUM_ITER_STOCH = 50;
+const int NUM_CHECKS = 50;
 
 void initialize_estimate(estimate_t* estimate);
 float evaluate(estimate_t* estimate, float x);
@@ -35,9 +34,9 @@ estimate_t* sgd(int N, float* x, float* y);
 estimate_t* sgd_epoch(int N, float* x, float* y);
 
 estimate_t* bgdCuda(int N, float* x, float* y);
-estimate_t* sgd_per_thread(int N, float* x, float* y, int blocks, int threadsPerBlock);
+estimate_t* sgdPerThread(int N, float* x, float* y, int blocks, int threadsPerBlock);
 estimate_t* sgdCudaByBlock(int N, float* x, float* y, int samplesPerThread,
-                           int blocks, int threadsPerBlock);
+                           int blocks);
 
 estimate_t* sgdCudaWithPartition(int N, float* x, float* y, int blocks,
                                  int threadsPerBlock);
