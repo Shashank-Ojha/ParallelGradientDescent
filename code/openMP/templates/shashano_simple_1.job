@@ -11,11 +11,11 @@ cd $SCRATCH
 APP_NAME=gd # CHANGE THIS TO THE NAME OF YOUR PROGRAM
 
 # Set this to the important directory.
-execdir=PROGDIR # The directory that contains your wire routing program
+execdir=/home/shashano/ParallelGradientDescent/code/openMP # The directory that contains your wire routing program
 exe=$APP_NAME # The name of your wire routing program
-input=INPUT # The name of the input file
+input=simple.txt # The name of the input file
 inputname=`basename $input`
-args="-f $inputname -n THREADS"
+args="-f $inputname -n 1"
 inputdir=$execdir/data # The directory for test cases
 
 echo $inputname
