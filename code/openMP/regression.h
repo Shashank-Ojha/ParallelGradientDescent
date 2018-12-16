@@ -20,12 +20,10 @@ double getdB0(double x, double y, estimate_t* estimate, int N);
 
 double calculate_error(int N, double* x, double* y, estimate_t* estimate);
 
-estimate_t* bgd(int N, double* x, double* y, int num_threads, double* step_times);
+estimate_t* bgd(int N, double* x, double* y, int num_threads, double* times);
 
 void sgd_step(int N, double* x, double* y, estimate_t* estimate, int j);
 
 estimate_t* sgd(int N, double* x, double* y);
 
 void shuffle(double* x, double* y, int N, unsigned int* tid_seed);
-
-estimate_t* sgd_approx(int N, double* x, double* y, double alpha, double refMSE, double* time);

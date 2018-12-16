@@ -44,12 +44,11 @@ double calculate_error(int N, double* x, double* y, estimate_t* estimate) {
 	return res;
 }
 
-estimate_t* bgd(int N, double* x, double* y, int num_threads, double* step_times)
+estimate_t* bgd(int N, double* x, double* y, int num_threads, double* time)
 {
     using namespace std::chrono;
     typedef std::chrono::high_resolution_clock Clock;
     typedef std::chrono::duration<double> dsec;
-    double totalTime = 0.0;
     auto start = Clock::now();
 
 	  omp_set_num_threads(num_threads);
@@ -99,19 +98,11 @@ estimate_t* bgd(int N, double* x, double* y, int num_threads, double* step_times
 		    estimate -> b1 -= db1;
         estimate -> b2 -= db2;
     		estimate -> b3 -= db3;
-
-        //Time information
-        auto end = Clock::now();
-        totalTime += duration_cast<dsec>(end - start).count();
-        if((num_steps == 1 || num_steps % 1000 == 0))
-        {
-          double MSE = calculate_error(N, x, y, estimate);
-          printf("%.3lf\n", MSE);
-          step_times[idx] = totalTime;
-          idx += 1;
-        }
-        start = Clock::now();
   	}
+
+    auto end = Clock::now();
+    *time += duration_cast<dsec>(end - start).count();
+
   	return estimate;
 }
 
@@ -155,8 +146,8 @@ estimate_t* sgd_epochs(int N, double* x, double* y)
   	return estimate;
 }
 
-
-void shuffle(double* x, double* y, int N, unsigned int* tid_seed){
+void shuffle(double* x, double* y, int N, unsigned int* tid_seed)
+{
   for(int i = 0; i < N; i++){
     int j = rand_r(tid_seed) % N;
 

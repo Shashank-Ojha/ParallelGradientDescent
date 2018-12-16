@@ -1,5 +1,5 @@
 
-/* FOLD5x2.pp.txt */
+/*     FOLD5x2.pp.txt    */
 
 // const double STEP_SIZE_BATCH = 0.000000001;
 // const int NUM_ITER_BATCH =  100000;
@@ -11,9 +11,8 @@
 
 //-----------------------------------------------------------------------------
 
+/*    OnlineNewsPopularity.txt     */
 
-/* OnlineNewsPopularity.txt */
-//
 const float STEP_SIZE_BATCH = 0.01;
 const int NUM_ITER_BATCH =  100000;
 

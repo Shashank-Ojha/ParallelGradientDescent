@@ -1,6 +1,20 @@
 /**
  * Parallel Gradient Descent via OpenMP
  * Shashank Ojha(shashano), Kylee Santos(ksantos)
+ *
+ *
+ *    Different types of designs:
+ *         batch : 1 thread
+ *         batch : n threads
+ *         sgdPerThread : 1 thread
+ *         sgd_epochsPerThread : 1 thread
+ *         sgdPerThread : n threads
+ *         sgd_epochsPerThread : n threads
+ *         sgd_with_k_samples : 1 sample, 1 threads (SAME AS sgdPerThread : 1 thread)
+ *         sgd_with_k_samples : 1 sample, n threads
+ *         sgd_with_k_samples : k samples, 1 thread
+ *         sgd_with_k_samples : k samples, n threads
+ *
  */
 
 #include <chrono>
@@ -18,12 +32,9 @@
 #include "regression.h"
 #include "sgd_designs.h"
 
-#define BUFSIZE 1024
-
 static int _argc;
 static const char **_argv;
 
-/* Starter code function, don't touch */
 const char *get_option_string(const char *option_name, const char *default_value)
 {
   for (int i = _argc - 2; i >= 0; i -= 2)
@@ -32,7 +43,6 @@ const char *get_option_string(const char *option_name, const char *default_value
   return default_value;
 }
 
-/* Starter code function, do not touch */
 int get_option_int(const char *option_name, int default_value)
 {
   for (int i = _argc - 2; i >= 0; i -= 2)
@@ -41,7 +51,6 @@ int get_option_int(const char *option_name, int default_value)
   return default_value;
 }
 
-/* Starter code function, do not touch */
 double get_option_double(const char *option_name, double default_value)
 {
   for (int i = _argc - 2; i >= 0; i -= 2)
@@ -50,7 +59,6 @@ double get_option_double(const char *option_name, double default_value)
   return default_value;
 }
 
-/* Starter code function, do not touch */
 static void show_help(const char *program_path)
 {
     printf("Usage: %s OPTIONS\n", program_path);
@@ -58,6 +66,7 @@ static void show_help(const char *program_path)
     printf("OPTIONS:\n");
     printf("\t-f <input_filename> (required)\n");
     printf("\t-n <num_of_threads> (required)\n");
+    printf("\t-s <samples_per_thread> (required)\n");
 }
 
 static void print_divider()
@@ -77,6 +86,7 @@ static void print_estimate_information(const char *estimateName, estimate_t* est
   printf("MSE: %0.2f\n", MSE);
   printf("Computation Time: %lf.\n", time);
 }
+
 int main(int argc, const char *argv[])
 {
 	  using namespace std::chrono;
@@ -110,14 +120,10 @@ int main(int argc, const char *argv[])
     }
 
     int N;
-
-    double* x;
-    double* y;
-
     fscanf(input, "%d\n", &N);
 
-    x = (double*)malloc(sizeof(double) * N);
-    y = (double*)malloc(sizeof(double) * N);
+    double* x = (double*)malloc(sizeof(double) * N);
+    double* y = (double*)malloc(sizeof(double) * N);
 
     for(int i = 0; i < N; i++){
        fscanf(input, "%lf %lf\n", x+i, y+i);
@@ -127,34 +133,9 @@ int main(int argc, const char *argv[])
 
 	  double batch_time = 0.0;
     double k_samples_time = 0.0;
-    double stochastic_sequential_time = 0.0;
-    double stochastic_parallel_time = 0.0;
+    double per_thread_time = 0.0;
 
-    // double* step_times_bgd = (double*)(malloc(sizeof(double)*101));
-    double* workTime = (double*)(malloc(sizeof(double)));
-    double* totalTime = (double*)(malloc(sizeof(double)));
-
-
-    // double* step_times_sgdPerThread = (double*)(malloc(sizeof(double)*101));
-
-
-
-    /*
-        Different types of designs:
-
-        batch : 1 thread
-        batch : n threads
-        sgdPerThread : 1 thread
-        sgd_epochsPerThread : 1 thread
-        sgdPerThread : n threads
-        sgd_epochsPerThread : n threads
-        sgd_with_k_samples : 1 sample, 1 threads (SAME AS sgdPerThread : 1 thread)
-        sgd_with_k_samples : 1 sample, n threads
-        sgd_with_k_samples : k samples, 1 thread
-        sgd_with_k_samples : k samples, n threads
-    */
-
-	  estimate_t estimate_bgd, estimate_sgd_sequential, estimate_sgd_parallel;
+	  estimate_t estimate_bgd, estimate_sgd_kSamples, estimate_sgd_per_thread;
 
     #ifdef RUN_MIC /* Use RUN_MIC to distinguish between the target of compilation */
 
@@ -163,55 +144,35 @@ int main(int argc, const char *argv[])
         */
     #pragma offload target(mic) \
        inout(x: length(N) INOUT) \
-       inout(y: length(N) INOUT) \
-       inout(workTime: length(1) INOUT) \
-       inout(totalTime: length(1) INOUT)
+       inout(y: length(N) INOUT)
     #endif
       {
          srand(418);
 
-		     // auto batch_start = Clock::now();
-         //
-         // estimate_bgd = *bgd(N, x, y, num_of_threads, step_times_bgd);
-         //
-				 // auto batch_end = Clock::now();
-		  	 // batch_time = duration_cast<dsec>(batch_end - batch_start).count();
+         estimate_bgd = *bgd(N, x, y, num_of_threads, &batch_time);
 
-         // printf("k samples MSE's\n");
-         estimate_sgd_sequential = *sgd_with_k_samples(N, x, y, samplesPerThread, num_of_threads, workTime, totalTime);
+         estimate_sgd_kSamples = *sgd_with_k_samples(N, x, y, samplesPerThread, num_of_threads, &k_samples_time);
 
-
-         // printf("parallel MSE's\n");
-      	 // estimate_sgd_parallel = *sgd_per_thread(N, x, y, num_of_threads, step_times_sgdPerThread);
+      	 estimate_sgd_per_thread = *sgd_per_thread(N, x, y, num_of_threads, &per_thread_time);
       }
 
-	  // double bgd_MSE = calculate_error(N, x, y, &estimate_bgd);
-    // double sgd_MSE_sequential = calculate_error(N, x, y, &estimate_sgd_sequential);
-	  // double sgd_MSE_parallel = calculate_error(N, x, y, &estimate_sgd_parallel);
+	  double bgd_MSE = calculate_error(N, x, y, &estimate_bgd);
+    double sgd_kSamples_MSE = calculate_error(N, x, y, &estimate_sgd_kSamples);
+	  double sgd_per_thread_MSE = calculate_error(N, x, y, &estimate_sgd_per_thread);
 
-    printf("%lf\n", *workTime);
+    print_estimate_information("Batch", &estimate_bgd, bgd_MSE, batch_time);
 
-    printf("%lf\n", *totalTime);
+    print_divider();
 
-    // for(int i = 0; i < 101; i++)
-    // {
-    //   printf("%lf\n", step_times_sgdPerThread[i]);
-    // }
-    // print_divider();
-    //
-    // print_estimate_information("Batch", &estimate_bgd, bgd_MSE, batch_time);
-    //
-    // print_divider();
-    //
-    // print_estimate_information("Stochastic Sequential", &estimate_sgd_sequential,
-    //                             sgd_MSE_sequential, stochastic_sequential_time);
-    //
-    // print_divider();
-    //
-    // print_estimate_information("Stochastic Parallel", &estimate_sgd_parallel,
-    //                             sgd_MSE_parallel, stochastic_parallel_time);
-    //
-    // print_divider();
+    print_estimate_information("SGD K Samples", &estimate_sgd_kSamples,
+                                sgd_kSamples_MSE, k_samples_time);
+
+    print_divider();
+
+    print_estimate_information("SGD Per Thread", &estimate_sgd_per_thread,
+                                sgd_per_thread_MSE, per_thread_time);
+
+    print_divider();
 
 	  free(x);
 	  free(y);
