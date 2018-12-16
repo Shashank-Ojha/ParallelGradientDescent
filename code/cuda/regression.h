@@ -11,12 +11,16 @@ const float INIT_B2 = 0.0;
 const float INIT_B1 = 0.0;
 const float INIT_B0 = 0.0;
 
-const float STEP_SIZE_BATCH = 0.001;
-const int NUM_ITER_BATCH =  100000;
+const float CLOCK_RATE = 1733000000.0;
 
-const float STEP_SIZE_STOCH = 0.25;
-const int NUM_ITER_STOCH = 50;
-const int NUM_CHECKS = 50;
+const float STEP_SIZE_BATCH = 0.001;
+const int NUM_ITER_BATCH =  10000;
+
+const float STEP_SIZE_STOCH = 0.5;
+const int NUM_ITER_STOCH = 250000;
+const int NUM_ITER_STOCH_EPOCH = 50;
+const int NUM_ITER_STOCH_BLOCK = 100000;
+const int NUM_ITER_STOCH_PARTITION = 100;
 
 void initialize_estimate(estimate_t* estimate);
 float evaluate(estimate_t* estimate, float x);

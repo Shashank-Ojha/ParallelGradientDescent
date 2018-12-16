@@ -3,7 +3,6 @@
 #include <cuda_runtime.h>
 #include <driver_functions.h>
 #include <curand_kernel.h>
-#include <cuda_runtime.h>
 
 #include "regression.h"
 
@@ -11,8 +10,6 @@
 
 void printCudaInfo()
 {
-    // for fun, just print out some stats on the machine
-
     int deviceCount = 0;
     cudaError_t err = cudaGetDeviceCount(&deviceCount);
 
@@ -54,20 +51,6 @@ long get_max_time(long* times, int num_threads) {
     return max;
 }
 
-// void shuffle(float* x, float* y, int N, unsigned int* tid_seed){
-//   for(int i = 0; i < N; i++){
-//     int j = rand_r(tid_seed) % N;
-//
-//     float tempx = x[i];
-//     x[i] = x[j];
-//     x[j] = tempx;
-//
-//     float tempy = y[i];
-//     y[i] = y[j];
-//     y[j] = tempy;
-//   }
-// }
-
 __device__ __inline__ float
 evaluateCuda(estimate_t* estimate, float x){
   return (estimate->b3)*x*x*x + (estimate->b2)*x*x + (estimate->b1)*x + estimate->b0;
@@ -106,11 +89,10 @@ setup_kernel(curandState *states) {
 }
 
 __global__ void
-sgd_cuda(estimate_t* estimates, estimate_t* benchmarks, long* benchmark_times,
-            float* x, float* y, curandState* states, long* times, int N, int totalThreads)
+sgd_cuda(estimate_t* estimates, float* x, float* y, curandState* states,
+            float* times, int N, int totalThreads)
 {
-    clock_t start, end;
-    start = clock();
+    clock_t start = clock();
     int index = blockIdx.x * blockDim.x + threadIdx.x;
 
     for(int i = 0; i < NUM_ITER_STOCH; i++) {
@@ -121,60 +103,39 @@ sgd_cuda(estimate_t* estimates, estimate_t* benchmarks, long* benchmark_times,
         estimates[index].b1 -= STEP_SIZE_STOCH * getdB1Cuda(x[pi], y[pi], estimates+index, N);
         estimates[index].b2 -= STEP_SIZE_STOCH * getdB2Cuda(x[pi], y[pi], estimates+index, N);
         estimates[index].b3 -= STEP_SIZE_STOCH * getdB3Cuda(x[pi], y[pi], estimates+index, N);
-
-        end = clock();
-        times[index] += (long)(end - start);
-        int interval = NUM_ITER_STOCH / NUM_CHECKS;
-        if (i % interval == 0) {
-            benchmarks[(i/interval)*totalThreads + index] = estimates[index];
-            benchmark_times[(i/interval)*totalThreads + index] = times[index];
-        }
-        start = clock();
     }
+    clock_t end = clock();
+    times[index] = static_cast<float>(end - start) / CLOCK_RATE;
 }
 
 // Running SGD with all threads each sampling one point and averaging result
 // after each SGD step. Checking convergence after each step
 estimate_t* sgdPerThread(int N, float* x, float* y, int blocks, int threadsPerBlock)
 {
-  long* device_times;
+  float* device_times;
   curandState* states;
   float* device_X;
   float* device_Y;
   estimate_t* device_estimates;
-  estimate_t* device_benchmarks;
-  long* device_benchmark_times;
 
   int totalThreads = blocks * threadsPerBlock;
-  int numBenchmarks = NUM_CHECKS * totalThreads;
 
-  cudaMalloc((void **)&device_times, totalThreads * sizeof(long));
+  cudaMalloc((void **)&device_times, totalThreads * sizeof(float));
   cudaMalloc((void **)&states, totalThreads * sizeof(curandState));
   cudaMalloc((void **)&device_X, sizeof(float) * N);
   cudaMalloc((void **)&device_Y, sizeof(float) * N);
   cudaMalloc((void **)&device_estimates, sizeof(estimate_t) * totalThreads);
-  cudaMalloc((void **)&device_benchmarks, sizeof(estimate_t) * numBenchmarks);
-  cudaMalloc((void **)&device_benchmark_times, sizeof(long) * numBenchmarks);
 
-  long* times = (long*)calloc(totalThreads, sizeof(long));
+  float* times = (float*)calloc(totalThreads, sizeof(float));
   estimate_t* estimates = (estimate_t*)calloc(totalThreads, sizeof(estimate_t));
-  estimate_t* benchmarks = (estimate_t*)calloc(numBenchmarks, sizeof(estimate_t));
-  long* benchmark_times = (long*)calloc(numBenchmarks, sizeof(long));
   for(int i = 0; i < totalThreads; i++) {
       initialize_estimate(estimates+i);
-  }
-  for(int j = 0; j < numBenchmarks; j++) {
-      initialize_estimate(benchmarks+j);
   }
 
   cudaMemcpy(device_X, x, N * sizeof(float), cudaMemcpyHostToDevice);
   cudaMemcpy(device_Y, y, N * sizeof(float), cudaMemcpyHostToDevice);
-  cudaMemcpy(device_times, times, totalThreads * sizeof(long), cudaMemcpyHostToDevice);
+  cudaMemcpy(device_times, times, totalThreads * sizeof(float), cudaMemcpyHostToDevice);
   cudaMemcpy(device_estimates, estimates, totalThreads * sizeof(estimate_t),
-             cudaMemcpyHostToDevice);
-  cudaMemcpy(device_benchmarks, benchmarks, numBenchmarks * sizeof(estimate_t),
-             cudaMemcpyHostToDevice);
-  cudaMemcpy(device_benchmark_times, benchmark_times, numBenchmarks * sizeof(long),
              cudaMemcpyHostToDevice);
 
   setup_kernel<<<blocks, threadsPerBlock>>>(states);
@@ -182,43 +143,22 @@ estimate_t* sgdPerThread(int N, float* x, float* y, int blocks, int threadsPerBl
 
   // Launch CUDA Kernel
   sgd_cuda<<<blocks, threadsPerBlock>>>(
-      device_estimates, device_benchmarks, device_benchmark_times,
-      device_X, device_Y, states, device_times, N, totalThreads
+      device_estimates, device_X, device_Y, states, device_times, N, totalThreads
   );
   cudaThreadSynchronize();
 
-  cudaMemcpy(times, device_times, totalThreads * sizeof(long),
+  cudaMemcpy(times, device_times, totalThreads * sizeof(float),
                cudaMemcpyDeviceToHost);
   cudaMemcpy(estimates, device_estimates, totalThreads * sizeof(estimate_t),
                cudaMemcpyDeviceToHost);
-  cudaMemcpy(benchmarks, device_benchmarks, numBenchmarks * sizeof(estimate_t),
-               cudaMemcpyDeviceToHost);
-  cudaMemcpy(benchmark_times, device_benchmark_times, numBenchmarks * sizeof(long),
-               cudaMemcpyDeviceToHost);
 
-  // Print the MSE at various iterations
-  printf("MSE\n\n");
-  for(int k = 0; k < NUM_CHECKS; k++) {
-      initialize_estimate(ret);
-      average_estimates(benchmarks+(totalThreads*k), ret, totalThreads);
-      float MSE = calculate_error(N, x, y, ret);
-      // printf("Steps: %d\tMSE: %.3f\n", k*(NUM_ITER_STOCH / NUM_CHECKS), MSE);
-      printf("%.3f\n", MSE);
-  }
+  average_estimates(estimates, ret, totalThreads);
 
-  // Print the number of clock cycles at the checkpoints
-  printf("\n\nClock cycles\n\n");
-  for(int l = 0; l < NUM_CHECKS; l++) {
-      long time = get_max_time(benchmark_times+(totalThreads*l), totalThreads);
-      // printf("Steps: %d\tClock Cycles: %ld\n", l*(NUM_ITER_STOCH / NUM_CHECKS), time);
-      printf("%ld\n", time);
+  float max_time = 0.0;
+  for(int j = 0; j < totalThreads; j++) {
+      if (times[j] > max_time) max_time = times[j];
   }
-
-  long max_time = 0;
-  for(int l = 0; l < totalThreads; l++) {
-      if (times[l] > max_time) max_time = times[l];
-  }
-  printf("Num of clock cycles: %ld\n", max_time);
+  printf("Total execution time: %.3f seconds\n", max_time);
 
   return ret;
 }
@@ -227,17 +167,18 @@ estimate_t* sgdPerThread(int N, float* x, float* y, int blocks, int threadsPerBl
 
 // Assumes the number of indexes is equal to N
 __global__ void
-sgd_by_block(estimate_t* estimates, estimate_t* benchmarks, long* benchmark_times,
-            float* x, float* y, curandState* states, long* times, int N, int blocks,
-            int samplesPerThread)
+sgd_by_block(estimate_t* estimates, float* x, float* y, curandState* states,
+                float* times, int N, int blocks, int samplesPerThread)
 {
-  clock_t start, end;
-  start = clock();
-
+  clock_t start = clock();
   __shared__ estimate_t thread_dbs[THREADS_PER_BLOCK];
   int index = blockIdx.x * blockDim.x + threadIdx.x;
+  times[blockIdx.x] = 0.0;
+  clock_t end = clock();
+  times[blockIdx.x] += static_cast<float>(end - start) / CLOCK_RATE;
+  start = clock();
 
-  for(int i = 0; i < NUM_ITER_STOCH; i++) {
+  for(int i = 0; i < NUM_ITER_STOCH_BLOCK; i++) {
       thread_dbs[threadIdx.x].b0 = 0.0;
       thread_dbs[threadIdx.x].b1 = 0.0;
       thread_dbs[threadIdx.x].b2 = 0.0;
@@ -276,19 +217,16 @@ sgd_by_block(estimate_t* estimates, estimate_t* benchmarks, long* benchmark_time
           estimates[blockIdx.x].b1 -= STEP_SIZE_STOCH * db1;
           estimates[blockIdx.x].b2 -= STEP_SIZE_STOCH * db2;
           estimates[blockIdx.x].b3 -= STEP_SIZE_STOCH * db3;
-
-          int interval = NUM_ITER_STOCH / NUM_CHECKS;
-          if (i % interval == 0) {
-              end = clock();
-              benchmarks[(i/interval)*blocks + blockIdx.x] = estimates[blockIdx.x];
-              benchmark_times[(i/interval)*blocks + blockIdx.x] = (long)(end - start);
-          }
+          end = clock();
+          times[blockIdx.x] += static_cast<float>(end - start) / CLOCK_RATE;
+          start = clock();
       }
       __syncthreads();
   }
-
-  end = clock();
-  times[blockIdx.x] = (long)(end - start);
+  if (threadIdx.x == 0) {
+      clock_t end = clock();
+      times[blockIdx.x] += static_cast<float>(end - start) / CLOCK_RATE;
+  }
 }
 
 // Running SGD on each block with all threads sampling k points and averaging result
@@ -296,44 +234,30 @@ sgd_by_block(estimate_t* estimates, estimate_t* benchmarks, long* benchmark_time
 estimate_t* sgdCudaByBlock(int N, float* x, float* y, int samplesPerThread,
                            int blocks)
 {
-  long* device_times;
+  float* device_times;
   curandState* states;
   float* device_X;
   float* device_Y;
   estimate_t* device_estimates;
-  estimate_t* device_benchmarks;
-  long* device_benchmark_times;
 
   int totalThreads = blocks * THREADS_PER_BLOCK;
-  int numBenchmarks = NUM_CHECKS * blocks;
 
-  cudaMalloc((void **)&device_times, totalThreads * sizeof(long));
+  cudaMalloc((void **)&device_times, blocks * sizeof(float));
   cudaMalloc((void **)&states, totalThreads * sizeof(curandState));
   cudaMalloc((void **)&device_X, sizeof(float) * N);
   cudaMalloc((void **)&device_Y, sizeof(float) * N);
   cudaMalloc((void **)&device_estimates, sizeof(estimate_t) * blocks);
-  cudaMalloc((void **)&device_benchmarks, sizeof(estimate_t) * numBenchmarks);
-  cudaMalloc((void **)&device_benchmark_times, sizeof(long) * numBenchmarks);
 
-  long* times = (long*)calloc(totalThreads, sizeof(long));
+  float* times = (float*)calloc(totalThreads, sizeof(float));
   estimate_t* estimates = (estimate_t*)malloc(blocks * sizeof(estimate_t));
-  estimate_t* benchmarks = (estimate_t*)malloc(numBenchmarks * sizeof(estimate_t));
-  long* benchmark_times = (long*)calloc(numBenchmarks, sizeof(long));
   for (int i = 0; i < blocks; i++) {
       initialize_estimate(estimates+i);
-  }
-  for(int j = 0; j < numBenchmarks; j++) {
-      initialize_estimate(benchmarks+j);
   }
 
   cudaMemcpy(device_X, x, N * sizeof(float), cudaMemcpyHostToDevice);
   cudaMemcpy(device_Y, y, N * sizeof(float), cudaMemcpyHostToDevice);
-  cudaMemcpy(device_times, times, totalThreads * sizeof(long), cudaMemcpyHostToDevice);
+  cudaMemcpy(device_times, times, blocks * sizeof(float), cudaMemcpyHostToDevice);
   cudaMemcpy(device_estimates, estimates, blocks * sizeof(estimate_t),
-             cudaMemcpyHostToDevice);
-  cudaMemcpy(device_benchmarks, benchmarks, numBenchmarks * sizeof(estimate_t),
-             cudaMemcpyHostToDevice);
-  cudaMemcpy(device_benchmark_times, benchmark_times, numBenchmarks * sizeof(long),
              cudaMemcpyHostToDevice);
 
   setup_kernel<<<blocks, THREADS_PER_BLOCK>>>(states);
@@ -341,56 +265,23 @@ estimate_t* sgdCudaByBlock(int N, float* x, float* y, int samplesPerThread,
   estimate_t* ret = (estimate_t*)malloc(sizeof(estimate_t));
 
   sgd_by_block<<<blocks, THREADS_PER_BLOCK>>>(
-      device_estimates, device_benchmarks, device_benchmark_times,
-      device_X, device_Y, states, device_times, N, blocks, samplesPerThread
+      device_estimates, device_X, device_Y, states, device_times, N, blocks, samplesPerThread
   );
   cudaThreadSynchronize();
 
-  cudaMemcpy(times, device_times, totalThreads * sizeof(long),
+  cudaMemcpy(times, device_times, blocks * sizeof(float),
                cudaMemcpyDeviceToHost);
   cudaMemcpy(estimates, device_estimates, blocks * sizeof(estimate_t),
                cudaMemcpyDeviceToHost);
-  cudaMemcpy(benchmarks, device_benchmarks, numBenchmarks * sizeof(estimate_t),
-               cudaMemcpyDeviceToHost);
-  cudaMemcpy(benchmark_times, device_benchmark_times, numBenchmarks * sizeof(long),
-               cudaMemcpyDeviceToHost);
 
+  average_estimates(estimates, ret, blocks);
 
-  // Print the MSE at various iterations
-  printf("MSE\n\n");
-  for(int k = 0; k < NUM_CHECKS; k++) {
-      average_estimates(benchmarks+(blocks*k), ret, blocks);
-      float MSE = calculate_error(N, x, y, ret);
-      // printf("Steps: %d\tMSE: %.3f\n", k*(NUM_ITER_STOCH / NUM_CHECKS), MSE);
-      printf("%.3f\n", MSE);
+  float max_time = 0.0;
+  for(int j = 0; j < blocks; j++) {
+      if (times[j] > max_time) max_time = times[j];
   }
+  printf("Total execution time: %.3f seconds\n", max_time);
 
-  // Print the number of clock cycles at the checkpoints
-  printf("\n\nClock cycles\n\n");
-  for(int l = 0; l < NUM_CHECKS; l++) {
-      long time = get_max_time(benchmark_times+(blocks*l), blocks);
-      // printf("Steps: %d\tClock Cycles: %ld\n", l*(NUM_ITER_STOCH / NUM_CHECKS), time);
-      printf("%ld\n", time);
-  }
-
-  long max_time = 0;
-  for(int l = 0; l < blocks; l++) {
-      if (times[l] > max_time) max_time = times[l];
-  }
-
-  ret->b0 = 0.0;
-  ret->b1 = 0.0;
-  ret->b2 = 0.0;
-  ret->b3 = 0.0;
-  printf("Num of clock cycles: %ld\n", max_time);
-  for(int i = 0; i < blocks; i++) {
-    ret -> b0 += (estimates+i) -> b0 / static_cast<float>(blocks);
-    ret -> b1 += (estimates+i) -> b1 / static_cast<float>(blocks);
-    ret -> b2 += (estimates+i) -> b2 / static_cast<float>(blocks);
-    ret -> b3 += (estimates+i) -> b3 / static_cast<float>(blocks);
-    printf("y = (%.5f) x^3 + (%.5f) x^2 + (%.5f) x + (%.5f)\n",
-           (estimates+i) -> b3, (estimates+i) -> b2, (estimates+i) -> b1, (estimates+i) -> b0);
-  }
   return ret;
 }
 
@@ -413,11 +304,10 @@ shuffle(float* x, float* y, int size, curandState* randState){
 
 // Assumes the number of indexes is equal to N
 __global__ void
-sgd_with_partition(estimate_t* estimates, estimate_t* benchmarks, long* benchmark_times,
-            float* x, float* y, curandState* states, long* times, int N, int totalThreads)
+sgd_with_partition(estimate_t* estimates, float* x, float* y,
+                    curandState* states, float* times, int N, int totalThreads)
 {
   clock_t start = clock();
-  clock_t end;
   int index = blockIdx.x * blockDim.x + threadIdx.x;
 
   curandState localState = states[index];
@@ -446,7 +336,7 @@ sgd_with_partition(estimate_t* estimates, estimate_t* benchmarks, long* benchmar
     subsetY[i-lo] = y[i];
   }
 
-  for (int i = 0; i < NUM_ITER_STOCH; i++) {
+  for (int i = 0; i < NUM_ITER_STOCH_PARTITION; i++) {
       shuffle(subsetX, subsetY, subsetSize, &localState);
 
       for(int j = 0; j < subsetSize; j++)
@@ -462,104 +352,60 @@ sgd_with_partition(estimate_t* estimates, estimate_t* benchmarks, long* benchmar
           estimates[index].b3 -= (STEP_SIZE_STOCH * db3);
       }
       states[index] = localState;
-      int interval = NUM_ITER_STOCH / NUM_CHECKS;
-      if (i % interval == 0) {
-          end = clock();
-          benchmarks[(i/interval)*totalThreads + index] = estimates[index];
-          benchmark_times[(i/interval)*totalThreads + index] = (long)(end - start);
-      }
   }
-  clock_t stop = clock();
-  times[index] = (long)(stop - start);
+  clock_t end = clock();
+  times[index] = static_cast<float>(end - start) / CLOCK_RATE;
 }
 
 estimate_t* sgdCudaWithPartition(int N, float* x, float* y, int blocks,
                                  int threadsPerBlock)
 {
-  long* device_times;
+  float* device_times;
   curandState* states;
   float* device_X;
   float* device_Y;
   estimate_t* device_estimates;
-  estimate_t* device_benchmarks;
-  long* device_benchmark_times;
 
   int totalThreads = blocks * threadsPerBlock;
-  int numBenchmarks = NUM_CHECKS * totalThreads;
 
-  cudaMalloc((void **)&device_times, totalThreads * sizeof(long));
+  cudaMalloc((void **)&device_times, totalThreads * sizeof(float));
   cudaMalloc((void **)&states, totalThreads * sizeof(curandState));
   cudaMalloc((void **)&device_X, sizeof(float) * N);
   cudaMalloc((void **)&device_Y, sizeof(float) * N);
   cudaMalloc((void **)&device_estimates, sizeof(estimate_t) * totalThreads);
-  cudaMalloc((void **)&device_benchmarks, sizeof(estimate_t) * numBenchmarks);
-  cudaMalloc((void **)&device_benchmark_times, sizeof(long) * numBenchmarks);
 
-  long* times = (long*)calloc(totalThreads, sizeof(long));
+  float* times = (float*)calloc(totalThreads, sizeof(float));
   estimate_t* estimates = (estimate_t*)calloc(totalThreads, sizeof(estimate_t));
-  estimate_t* benchmarks = (estimate_t*)calloc(numBenchmarks, sizeof(estimate_t));
-  long* benchmark_times = (long*)calloc(numBenchmarks, sizeof(long));
   for(int i = 0; i < totalThreads; i++) {
       initialize_estimate(estimates+i);
   }
-  for(int j = 0; j < numBenchmarks; j++) {
-      initialize_estimate(benchmarks+j);
-  }
-
-  // Randomly shuffle the data once so the partitions are random
-  // unsigned int seed = 15418;
-  // shuffle(x, y, N, &seed);
 
   cudaMemcpy(device_X, x, N * sizeof(float), cudaMemcpyHostToDevice);
   cudaMemcpy(device_Y, y, N * sizeof(float), cudaMemcpyHostToDevice);
-  cudaMemcpy(device_times, times, totalThreads * sizeof(long), cudaMemcpyHostToDevice);
+  cudaMemcpy(device_times, times, totalThreads * sizeof(float), cudaMemcpyHostToDevice);
   cudaMemcpy(device_estimates, estimates, totalThreads * sizeof(estimate_t),
-             cudaMemcpyHostToDevice);
-  cudaMemcpy(device_benchmarks, benchmarks, numBenchmarks * sizeof(estimate_t),
-             cudaMemcpyHostToDevice);
-  cudaMemcpy(device_benchmark_times, benchmark_times, numBenchmarks * sizeof(long),
              cudaMemcpyHostToDevice);
 
   setup_kernel<<<blocks, threadsPerBlock>>>(states);
   estimate_t* ret = (estimate_t*)malloc(sizeof(estimate_t));
 
   sgd_with_partition<<<blocks, threadsPerBlock>>>(
-      device_estimates, device_benchmarks, device_benchmark_times,
-      device_X, device_Y, states, device_times, N, totalThreads
+      device_estimates, device_X, device_Y, states, device_times, N, totalThreads
   );
   cudaThreadSynchronize();
 
-  cudaMemcpy(times, device_times, totalThreads * sizeof(long),
+  cudaMemcpy(times, device_times, totalThreads * sizeof(float),
                cudaMemcpyDeviceToHost);
   cudaMemcpy(estimates, device_estimates, totalThreads * sizeof(estimate_t),
                cudaMemcpyDeviceToHost);
-  cudaMemcpy(benchmarks, device_benchmarks, numBenchmarks * sizeof(estimate_t),
-               cudaMemcpyDeviceToHost);
-  cudaMemcpy(benchmark_times, device_benchmark_times, numBenchmarks * sizeof(long),
-               cudaMemcpyDeviceToHost);
 
-   // Print the MSE at various iterations
-   printf("MSE\n\n");
-   for(int k = 0; k < NUM_CHECKS; k++) {
-       average_estimates(benchmarks+(totalThreads*k), ret, totalThreads);
-       float MSE = calculate_error(N, x, y, ret);
-       // printf("Steps: %d\tMSE: %.3f\n", k*(NUM_ITER_STOCH / NUM_CHECKS), MSE);
-       printf("%.3f\n", MSE);
-   }
+   average_estimates(estimates, ret, totalThreads);
 
-   // Print the number of clock cycles at the checkpoints
-   printf("\n\nClock cycles\n\n");
-   for(int l = 0; l < NUM_CHECKS; l++) {
-       long time = get_max_time(benchmark_times+(totalThreads*l), totalThreads);
-       // printf("Steps: %d\tClock Cycles: %ld\n", l*(NUM_ITER_STOCH / NUM_CHECKS), time);
-       printf("%ld\n", time);
+   float max_time = 0.0;
+   for(int j = 0; j < totalThreads; j++) {
+       if (times[j] > max_time) max_time = times[j];
    }
-
-   long max_time = 0;
-   for(int l = 0; l < totalThreads; l++) {
-       if (times[l] > max_time) max_time = times[l];
-   }
-   printf("Num of clock cycles: %ld\n", max_time);
+   printf("Total execution time: %.3f seconds\n", max_time);
 
    return ret;
 }

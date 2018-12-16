@@ -99,7 +99,7 @@ estimate_t* sgd_epoch(int N, float* x, float* y)
 	estimate_t* estimate = (estimate_t*)malloc(sizeof(estimate_t));
 	initialize_estimate(estimate);
 
-	for(int i = 0; i < NUM_ITER_STOCH; i++){
+	for(int i = 0; i < NUM_ITER_STOCH_EPOCH; i++){
         for(int j = 0; j < N; j++) {
             sgd_step(N, x, y, estimate, j);
         }
