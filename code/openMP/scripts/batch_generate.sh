@@ -1,9 +1,9 @@
 #/usr/bin/env bash
 # generate jobs in batch
 
-threads=(1 2 4 8 16) # The number of threads
+threads=(16) # The number of threads
 inputs=(OnlineNewsPopularity.txt) # The name of the input files
-samples=(10) # The number of samples per thread
+samples=(1 4 32) # The number of samples per thread
 
 rm -f *.job
 

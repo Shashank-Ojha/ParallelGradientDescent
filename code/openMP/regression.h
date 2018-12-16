@@ -1,31 +1,31 @@
 typedef struct {
-  float b3;
-  float b2;
-  float b1;
-  float b0;
+  double b3;
+  double b2;
+  double b1;
+  double b0;
   char padding[48];
 } estimate_t;
 
-const float INIT_B3 = 0.0;
-const float INIT_B2 = 0.0;
-const float INIT_B1 = 0.0;
-const float INIT_B0 = 0.0;
+const double INIT_B3 = 0.0;
+const double INIT_B2 = 0.0;
+const double INIT_B1 = 0.0;
+const double INIT_B0 = 0.0;
 
-float evaluate(estimate_t* estimate, float x);
+double evaluate(estimate_t* estimate, double x);
 
-float getdB3(float x, float y, estimate_t* estimate, int N);
-float getdB2(float x, float y, estimate_t* estimate, int N);
-float getdB1(float x, float y, estimate_t* estimate, int N);
-float getdB0(float x, float y, estimate_t* estimate, int N);
+double getdB3(double x, double y, estimate_t* estimate, int N);
+double getdB2(double x, double y, estimate_t* estimate, int N);
+double getdB1(double x, double y, estimate_t* estimate, int N);
+double getdB0(double x, double y, estimate_t* estimate, int N);
 
-float calculate_error(int N, float* x, float* y, estimate_t* estimate);
+double calculate_error(int N, double* x, double* y, estimate_t* estimate);
 
-estimate_t* bgd(int N, float* x, float* y, int num_threads);
+estimate_t* bgd(int N, double* x, double* y, int num_threads, double* step_times);
 
-void sgd_step(int N, float* x, float* y, estimate_t* estimate, int j);
+void sgd_step(int N, double* x, double* y, estimate_t* estimate, int j);
 
-estimate_t* sgd(int N, float* x, float* y);
+estimate_t* sgd(int N, double* x, double* y);
 
-void shuffle(float* x, float* y, int N, unsigned int* tid_seed);
+void shuffle(double* x, double* y, int N, unsigned int* tid_seed);
 
-estimate_t* sgd_approx(int N, float* x, float* y, float alpha, float refMSE, double* time);
+estimate_t* sgd_approx(int N, double* x, double* y, double alpha, double refMSE, double* time);

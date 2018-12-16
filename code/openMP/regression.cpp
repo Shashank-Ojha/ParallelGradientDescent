@@ -10,75 +10,83 @@
 #include "gd.h"
 #include "regression.h"
 
-float evaluate(estimate_t* estimate, float x){
+double evaluate(estimate_t* estimate, double x){
   return (estimate->b3)*x*x*x + (estimate->b2)*x*x + (estimate->b1)*x + estimate->b0;
 }
 
-float getdB3(float x, float y, estimate_t* estimate, int N){
-  float prediction = evaluate(estimate, x);
-  return -2.0 * (y-prediction)*x*x*x / static_cast<float>(N);
+double getdB3(double x, double y, estimate_t* estimate, int N){
+  double prediction = evaluate(estimate, x);
+  return -2.0 * (y-prediction)*x*x*x / static_cast<double>(N);
 }
 
-float getdB2(float x, float y, estimate_t* estimate, int N){
-  float prediction = evaluate(estimate, x);
-  return -2.0 * (y-prediction)*x*x / static_cast<float>(N);
+double getdB2(double x, double y, estimate_t* estimate, int N){
+  double prediction = evaluate(estimate, x);
+  return -2.0 * (y-prediction)*x*x / static_cast<double>(N);
 }
 
-float getdB1(float x, float y, estimate_t* estimate, int N){
-  float prediction = evaluate(estimate, x);
-  return -2.0 * (y-prediction)*x / static_cast<float>(N);
+double getdB1(double x, double y, estimate_t* estimate, int N){
+  double prediction = evaluate(estimate, x);
+  return -2.0 * (y-prediction)*x / static_cast<double>(N);
 }
 
-float getdB0(float x, float y, estimate_t* estimate, int N){
-  float prediction = evaluate(estimate, x);
-  return -2.0 * (y-prediction) / static_cast<float>(N);
+double getdB0(double x, double y, estimate_t* estimate, int N){
+  double prediction = evaluate(estimate, x);
+  return -2.0 * (y-prediction) / static_cast<double>(N);
 }
 
-float calculate_error(int N, float* x, float* y, estimate_t* estimate) {
-	float res = 0.0;
+double calculate_error(int N, double* x, double* y, estimate_t* estimate) {
+	double res = 0.0;
 	for (int i = 0; i < N; i++) {
-    float y_hat = evaluate(estimate, x[i]);
-		res += ((y[i] - y_hat) * (y[i] - y_hat)) / static_cast<float>(N);
+    double y_hat = evaluate(estimate, x[i]);
+		res += ((y[i] - y_hat) * (y[i] - y_hat)) / static_cast<double>(N);
 	}
 
 	return res;
 }
 
-estimate_t* bgd(int N, float* x, float* y, int num_threads)
+estimate_t* bgd(int N, double* x, double* y, int num_threads, double* step_times)
 {
+    using namespace std::chrono;
+    typedef std::chrono::high_resolution_clock Clock;
+    typedef std::chrono::duration<double> dsec;
+    double totalTime = 0.0;
+    auto start = Clock::now();
+
 	  omp_set_num_threads(num_threads);
-    float* partial_db0 = (float*)malloc(sizeof(float) * num_threads);
-		float* partial_db1 = (float*)malloc(sizeof(float) * num_threads);
-    float* partial_db2 = (float*)malloc(sizeof(float) * num_threads);
-    float* partial_db3 = (float*)malloc(sizeof(float) * num_threads);
+    double* partial_db0 = (double*)calloc(sizeof(double), num_threads);
+		double* partial_db1 = (double*)calloc(sizeof(double), num_threads);
+    double* partial_db2 = (double*)calloc(sizeof(double), num_threads);
+    double* partial_db3 = (double*)calloc(sizeof(double), num_threads);
 	  estimate_t* estimate = (estimate_t*)malloc(sizeof(estimate_t));
     estimate -> b0 = INIT_B0;
 	  estimate -> b1 = INIT_B1;
     estimate -> b2 = INIT_B2;
   	estimate -> b3 = INIT_B3;
-
-	  for(int i = 0; i < NUM_ITER_BATCH; i++)
+    int idx = 0;
+	  for(int num_steps = 1; num_steps <= NUM_ITER_BATCH; num_steps++)
 		{
+        for(int i = 0; i < num_threads; i++){
+          partial_db0[i] = 0.0;
+          partial_db1[i] = 0.0;
+          partial_db2[i] = 0.0;
+          partial_db3[i] = 0.0;
+        }
 				int j, tid;
 		    #pragma omp parallel for default(shared) private(j, tid) schedule(static)
 			    for(j = 0; j < N; j++)
 			    {
 				  	tid = omp_get_thread_num();
-            partial_db0[tid] = 0.0;
-            partial_db1[tid] = 0.0;
-            partial_db2[tid] = 0.0;
-            partial_db3[tid] = 0.0;
 
-            partial_db0[tid] += getdB0(x[j], y[j], estimate, N) / static_cast<float>(N);
-					  partial_db1[tid] += getdB1(x[j], y[j], estimate, N) / static_cast<float>(N);
-            partial_db2[tid] += getdB2(x[j], y[j], estimate, N) / static_cast<float>(N);
-          	partial_db3[tid] += getdB3(x[j], y[j], estimate, N) / static_cast<float>(N);
+            partial_db0[tid] += getdB0(x[j], y[j], estimate, N) * STEP_SIZE_BATCH;
+					  partial_db1[tid] += getdB1(x[j], y[j], estimate, N) * STEP_SIZE_BATCH;
+            partial_db2[tid] += getdB2(x[j], y[j], estimate, N) * STEP_SIZE_BATCH;
+          	partial_db3[tid] += getdB3(x[j], y[j], estimate, N) * STEP_SIZE_BATCH;
 			  	}
 
-        float db0 = 0.0;
-        float db1 = 0.0;
-        float db2 = 0.0;
-        float db3 = 0.0;
+        double db0 = 0.0;
+        double db1 = 0.0;
+        double db2 = 0.0;
+        double db3 = 0.0;
 				for (int k = 0; k < num_threads; k++)
 				{
           db0 += partial_db0[k];
@@ -87,15 +95,27 @@ estimate_t* bgd(int N, float* x, float* y, int num_threads)
           db3 += partial_db3[k];
 				}
 
-        estimate -> b0 -= STEP_SIZE_BATCH * db0;
-		    estimate -> b1 -= STEP_SIZE_BATCH * db1;
-        estimate -> b2 -= STEP_SIZE_BATCH * db2;
-    		estimate -> b3 -= STEP_SIZE_BATCH * db3;
+        estimate -> b0 -= db0;
+		    estimate -> b1 -= db1;
+        estimate -> b2 -= db2;
+    		estimate -> b3 -= db3;
+
+        //Time information
+        auto end = Clock::now();
+        totalTime += duration_cast<dsec>(end - start).count();
+        if((num_steps == 1 || num_steps % 1000 == 0))
+        {
+          double MSE = calculate_error(N, x, y, estimate);
+          printf("%.3lf\n", MSE);
+          step_times[idx] = totalTime;
+          idx += 1;
+        }
+        start = Clock::now();
   	}
   	return estimate;
 }
 
-void sgd_step(int N, float* x, float* y, estimate_t* estimate, int j)
+void sgd_step(int N, double* x, double* y, estimate_t* estimate, int j)
 {
     j = j % N;
     estimate -> b0 -= STEP_SIZE_STOCH * getdB0(x[j], y[j], estimate, N);
@@ -104,7 +124,7 @@ void sgd_step(int N, float* x, float* y, estimate_t* estimate, int j)
     estimate -> b3 -= STEP_SIZE_STOCH * getdB3(x[j], y[j], estimate, N);
 }
 
-estimate_t* sgd(int N, float* x, float* y)
+estimate_t* sgd(int N, double* x, double* y)
 {
 	  estimate_t* estimate = (estimate_t*)malloc(sizeof(estimate_t));
 	  estimate -> b0 = INIT_B0;
@@ -119,7 +139,7 @@ estimate_t* sgd(int N, float* x, float* y)
   	return estimate;
 }
 
-estimate_t* sgd_epochs(int N, float* x, float* y)
+estimate_t* sgd_epochs(int N, double* x, double* y)
 {
 	  estimate_t* estimate = (estimate_t*)malloc(sizeof(estimate_t));
 	  estimate -> b0 = INIT_B0;
@@ -136,15 +156,15 @@ estimate_t* sgd_epochs(int N, float* x, float* y)
 }
 
 
-void shuffle(float* x, float* y, int N, unsigned int* tid_seed){
+void shuffle(double* x, double* y, int N, unsigned int* tid_seed){
   for(int i = 0; i < N; i++){
     int j = rand_r(tid_seed) % N;
 
-    float tempx = x[i];
+    double tempx = x[i];
     x[i] = x[j];
     x[j] = tempx;
 
-    float tempy = y[i];
+    double tempy = y[i];
     y[i] = y[j];
     y[j] = tempy;
   }
