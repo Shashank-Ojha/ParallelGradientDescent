@@ -1,0 +1,12 @@
+simple.txt
+Batch: y = 1.47 (x) + 0.32
+Stochastic: y = 1.47 (x) + 0.31
+Number of threads: 1
+Input file: simple.txt
+
+ Performance counter stats for './gd -f simple.txt -n 1':
+
+            153146      cache-misses                                                
+
+      31.452619900 seconds time elapsed
+

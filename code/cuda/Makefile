@@ -5,7 +5,7 @@ CU_FILES   := gd.cu
 
 CU_DEPS    :=
 
-CC_FILES   := regression.cpp main.cpp
+CC_FILES   := main.cpp
 
 ###########################################################
 
@@ -24,7 +24,8 @@ endif
 NVCC=nvcc
 NVCCFLAGS=-O3 -m64 --gpu-architecture compute_35
 
-OBJS=$(OBJDIR)/regression.o $(OBJDIR)/main.o  $(OBJDIR)/gd.o
+
+OBJS=$(OBJDIR)/main.o  $(OBJDIR)/gd.o
 
 .PHONY: dirs clean
 
