@@ -5,7 +5,7 @@ CU_FILES   := gd.cu
 
 CU_DEPS    :=
 
-CC_FILES   := main.cpp
+CC_FILES   := regression.cpp main.cpp
 
 ###########################################################
 
@@ -22,10 +22,9 @@ else
 LDFLAGS=-L/usr/local/depot/cuda-8.0/lib64/ -lcudart
 endif
 NVCC=nvcc
-# NVCCFLAGS=-O3 -m64
-# --gpu-architecture compute_35
+NVCCFLAGS=-O3 -m64 --gpu-architecture compute_35
 
-OBJS=$(OBJDIR)/main.o  $(OBJDIR)/gd.o
+OBJS=$(OBJDIR)/regression.o $(OBJDIR)/main.o  $(OBJDIR)/gd.o
 
 .PHONY: dirs clean
 
