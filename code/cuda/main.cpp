@@ -121,35 +121,36 @@ int main(int argc, char** argv)
     char* design;
     print_divider();
 
-    estimate_t* est_bgd = bgd(N, x, y);
-    design = (char*)("Batch");
-    print_estimate(design, est_bgd);
-    print_MSE(est_bgd, x, y, N);
-    print_divider();
+    // estimate_t* est_bgd = bgd(N, x, y);
+    // design = (char*)("Batch");
+    // print_estimate(design, est_bgd);
+    // print_MSE(est_bgd, x, y, N);
+    // print_divider();
+    //
+    // design = (char*)("Stochastic");
+    // estimate_t* est_sgd = sgd(N, x, y);
+    // print_estimate(design, est_sgd);
+    // print_MSE(est_sgd, x, y, N);
+    // print_divider();
 
-    design = (char*)("Stochastic");
-    estimate_t* est_sgd = sgd(N, x, y);
-    print_estimate(design, est_sgd);
-    print_MSE(est_sgd, x, y, N);
-    print_divider();
-
-    design = (char*)("Cuda Stochastic Per Thread");
-    estimate_t* est_sgdCuda = sgd_per_thread(N, x, y, blocks, threadsPerBlock);
-    print_estimate(design, est_sgdCuda);
-    print_MSE(est_sgdCuda, x, y, N);
-    print_divider();
+    // design = (char*)("Cuda Stochastic Per Thread");
+    // estimate_t* est_sgdCuda = sgdPerThread(N, x, y, blocks, threadsPerBlock);
+    // print_estimate(design, est_sgdCuda);
+    // print_MSE(est_sgdCuda, x, y, N);
+    // print_divider();
 
     // design = (char*)("Cuda Stochastic by Block");
     // estimate_t* est_sgdByBlock = sgdCudaByBlock(
-    //     N, x, y, samplesPerThread, blocks, threadsPerBlock
+    //     N, x, y, samplesPerThread, blocks
     // );
     // print_estimate(design, est_sgdByBlock);
+    // print_MSE(est_sgdByBlock, x, y, N);
     // print_divider();
     //
-    // design = (char*)("Cuda Stochastic with Partition");
-    // estimate_t* est_sgdPartition = sgdCudaWithPartition(N, x, y, blocks, threadsPerBlock);
-    // print_estimate(design, est_sgdPartition);
-    // print_divider();
+    design = (char*)("Cuda Stochastic with Partition");
+    estimate_t* est_sgdPartition = sgdCudaWithPartition(N, x, y, blocks, threadsPerBlock);
+    print_estimate(design, est_sgdPartition);
+    print_divider();
 
     return 0;
 }
