@@ -1,0 +1,19 @@
+1. Command line arguments
+    - alpha
+    - blocks
+    - threads per block
+2. Metadata in input files
+    - Reference Slope
+    - Standard Deviation
+    - MSE
+    - (Update code to parse values)
+3. Time sgd_step function on driver
+    - for CUDA and OpenMP
+4. Clean up OpenMP designs and files
+5. Look into playing with step_size and preventing overflow by dividing by N before adding rather than at the end
+
+Together
+1. Think through general designs and what limitations they have for each framework
+    - parallelizing BGD on CUDA
+2. Come up with new designs for each framework
+    - Ex. CUDA take advantage of fast shared memory and have each block compute SGD independently

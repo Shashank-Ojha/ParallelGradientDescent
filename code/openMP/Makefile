@@ -1,6 +1,6 @@
-APP_NAME=gd
+APP_NAME=main
 
-OBJS=gd.o
+OBJS=regression.o sgd_designs.o main.o
 
 default: $(APP_NAME)
 
@@ -27,6 +27,8 @@ submit:
 	cd job_outputs && ../scripts/sub/submit.sh
 clean:
 	/bin/rm -rf *~ *.o $(APP_NAME) templates/$(USER)_*.job job_outputs/$(USER)_* file_outputs/*
+cleanf:
+	/bin/rm -rf job_outputs/$(USER)_*
 
 # For a given rule:
 # $< = first prerequisite

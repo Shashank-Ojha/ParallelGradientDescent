@@ -1,16 +1,31 @@
 typedef struct {
-  float b0;
-  float b1;
+  double b3;
+  double b2;
+  double b1;
+  double b0;
+  char padding[48];
 } estimate_t;
 
-typedef struct {
-  float num;
-  char padding[124];
-} num_t;
+const double INIT_B3 = 0.0;
+const double INIT_B2 = 0.0;
+const double INIT_B1 = 0.0;
+const double INIT_B0 = 0.0;
 
-const float STEP_SIZE_BATCH = 0.00005;
-const int NUM_ITER_BATCH =  1000000;
-const float STEP_SIZE_STOCH = 0.0001;
-const int NUM_ITER_STOCH =  500000;
-const float INIT_B0 = 0.0;
-const float INIT_B1 = 0.0;
+double evaluate(estimate_t* estimate, double x);
+
+double getdB3(double x, double y, estimate_t* estimate, int N);
+double getdB2(double x, double y, estimate_t* estimate, int N);
+double getdB1(double x, double y, estimate_t* estimate, int N);
+double getdB0(double x, double y, estimate_t* estimate, int N);
+
+double calculate_error(int N, double* x, double* y, estimate_t* estimate);
+
+estimate_t* bgd(int N, double* x, double* y, int num_threads, double* step_times);
+
+void sgd_step(int N, double* x, double* y, estimate_t* estimate, int j);
+
+estimate_t* sgd(int N, double* x, double* y);
+
+void shuffle(double* x, double* y, int N, unsigned int* tid_seed);
+
+estimate_t* sgd_approx(int N, double* x, double* y, double alpha, double refMSE, double* time);

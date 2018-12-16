@@ -1,0 +1,2 @@
+3. Time sgd_step function on driver
+    - for CUDA and OpenMP

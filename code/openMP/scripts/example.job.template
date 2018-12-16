@@ -8,14 +8,14 @@
 # Move to my $SCRATCH directory.
 cd $SCRATCH
 
-APP_NAME=gd # CHANGE THIS TO THE NAME OF YOUR PROGRAM
+APP_NAME=main # CHANGE THIS TO THE NAME OF YOUR PROGRAM
 
 # Set this to the important directory.
 execdir=PROGDIR # The directory that contains your wire routing program
 exe=$APP_NAME # The name of your wire routing program
 input=INPUT # The name of the input file
 inputname=`basename $input`
-args="-f $inputname -n THREADS"
+args="-f $inputname -n THREADS -s SAMPLES"
 inputdir=$execdir/data # The directory for test cases
 
 echo $inputname
@@ -24,4 +24,4 @@ cp $execdir/$exe $exe
 cp $inputdir/$input $inputname
 
 # Run my executable
-perf stat -e cache-misses ./$exe $args
+perf stat -e cache-references -e cache-misses ./$exe $args
