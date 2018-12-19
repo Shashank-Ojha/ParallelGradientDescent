@@ -1,5 +1,7 @@
 # Final Report
 
+Link to PDF: [Final Report](https://shashank-ojha.github.io/ParallelGradientDescent/Final%20Report.pdf)
+
 ## Summary
 
 We created optimized implementations of gradient descent on both GPU and multi-core CPU platforms, and perform a detailed analysis of both systems’ performance characteristics. The GPU implementation was done using CUDA, whereas the multi-core CPU implementation was done with OpenMP.
